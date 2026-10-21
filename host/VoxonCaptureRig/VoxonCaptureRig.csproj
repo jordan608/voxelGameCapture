@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- WinExe: this is the app a player opens, so no console window. What the console used to show goes to
+         VoxonCaptureRig.log beside the exe and to the Log tab. -->
+    <OutputType>WinExe</OutputType>
+    <!-- net9.0-windows: the Voxon SDK wrappers read the registry for the VLED install and use WindowsIdentity. -->
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>VoxonCaptureRig</RootNamespace>
+    <AssemblyName>VoxonCaptureRig</AssemblyName>
+    <!-- The copied SDK wrappers (Voxon/) carry fields the native side writes and warnings of their own;
+         the same suppressions Voxel64.Host builds them with. -->
+    <NoWarn>$(NoWarn);CS0649;CS0169;CS0414;CS8500;SYSLIB1054;CS8618;CS8600;CS8602;CS8603;CS8604;CS8625;CS0162;CS0219;CS8981</NoWarn>
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 11.3.0, as Voxel64.Host: the same widgets, the same behaviour. -->
+    <PackageReference Include="Avalonia"               Version="11.3.0" />
+    <PackageReference Include="Avalonia.Desktop"       Version="11.3.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.0" />
+    <!-- VoxonHardwareCheck asks Plug-and-Play whether a Voxon unit is attached. -->
+    <PackageReference Include="System.Management"      Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- THE PAYLOAD: everything the installer puts into a game, beside the exe, so the built folder is the
+         whole product and a player needs nothing else. Taken from the repository at build time; the add-on
+         is the copy in redist/ (addon/build.ps1 -Redist refreshes it), so building this needs no C++. -->
+    <Content Include="..\..\games.json" Link="games.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\rig\**\*" Exclude="..\..\rig\unity\**" Link="payload\rig\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\redist\**\*" Link="payload\redist\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

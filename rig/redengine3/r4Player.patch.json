@@ -1,0 +1,18 @@
+{
+  "file": "game/player/r4Player.ws",
+  "comment": "The game's own player script with three additions, made by the installer from the player's copy of the game (no game file is shipped). Each 'before' must stand exactly once in the game's file, or Install refuses.",
+  "inserts": [
+    {
+      "before": "\tprotected \t\tvar pcGamePlayInitialized\t\t\t: bool;",
+      "text": "\tpublic var vxRig : CVoxonRig;\t// VOXON RIG: the capture rig's state (voxonRig.ws)\n"
+    },
+    {
+      "before": "\ttimer function UnmountCrossbowTimer( dt : float, id : int )",
+      "text": "\ttimer function VxRigTimer( dt : float, id : int )\t// VOXON RIG: the capture rig's sweep, every frame\n\t{\n\t\tVxRigTick( dt );\n\t}\n\n"
+    },
+    {
+      "before": "\t\tAddAnimEventCallback('ThrowHoldTest',",
+      "text": "\t\tAddTimer( 'VxRigTimer', 0.0, true, , , , true );\t// VOXON RIG: the capture rig, every frame\n"
+    }
+  ]
+}

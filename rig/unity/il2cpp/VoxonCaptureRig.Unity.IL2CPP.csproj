@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The camera rig for Unity IL2CPP games, as a BepInEx 6 plugin: the same sources as ..\ (the Mono rig, BepInEx 5),
+    with IL2CPP defined, and a plugin of its own (Plugin.cs here).
+
+    An IL2CPP game has no managed assemblies to build against: BepInEx 6 makes interop assemblies from the game's
+    metadata on its first run (BepInEx\interop), and runs plugins on the .NET 6 it brings (dotnet\). So this builds
+    against a game where BepInEx 6 has run once (GameRoot; Gang Beasts by default), referencing that .NET's own
+    assemblies rather than a reference pack. Nothing is copied into the output.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+    <AssemblyName>VoxonCaptureRig.Unity.IL2CPP</AssemblyName>
+    <RootNamespace>VoxonCaptureRig.Unity</RootNamespace>
+    <DefineConstants>$(DefineConstants);IL2CPP</DefineConstants>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <GameRoot Condition="'$(GameRoot)' == ''">D:\XboxGames\Gang Beasts\Content</GameRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Plugin.cs" />
+    <Compile Include="..\Rig.cs;..\Geometry.cs;..\RigSettings.cs;..\SeeThrough.cs;..\Follow.cs;..\Urp.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="$(GameRoot)\dotnet\System*.dll" Exclude="$(GameRoot)\dotnet\*Native*.dll" Private="false" />
+    <Reference Include="$(GameRoot)\dotnet\netstandard.dll;$(GameRoot)\dotnet\mscorlib.dll" Private="false" />
+    <Reference Include="$(GameRoot)\BepInEx\core\BepInEx.Core.dll;$(GameRoot)\BepInEx\core\BepInEx.Unity.IL2CPP.dll" Private="false" />
+    <Reference Include="$(GameRoot)\BepInEx\core\Il2CppInterop.Runtime.dll;$(GameRoot)\BepInEx\core\Il2CppInterop.Common.dll" Private="false" />
+    <Reference Include="$(GameRoot)\BepInEx\interop\Il2Cppmscorlib.dll" Private="false" />
+    <Reference Include="$(GameRoot)\BepInEx\interop\UnityEngine.CoreModule.dll;$(GameRoot)\BepInEx\interop\UnityEngine.InputLegacyModule.dll" Private="false" />
+  </ItemGroup>
+</Project>

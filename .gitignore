@@ -1,0 +1,63 @@
+# Only our own work goes in git. What is left out, and where each third-party file comes from:
+# docs/DEVELOPER_GUIDE.md, "What is in git, and what is not".
+
+# ---- build output ----
+bin/
+obj/
+dist/
+*.user
+*.exp
+*.lib
+*.pdb
+*.ilk
+.vs/
+.vscode/
+.idea/
+
+# the Unity plugins' build input, taken out of redist/'s BepInEx zip by rig\unity\build.ps1
+rig/unity/lib/
+
+# ---- third-party: never in git ----
+# redist/ holds what the installer puts into games. Only the three files built from our own code are tracked:
+# the add-on, and the two Unity plugins, which can only be built against a game's own assemblies.
+redist/*
+!redist/voxon_capture_ue.addon64
+!redist/VoxonCaptureRig.Unity.dll
+!redist/VoxonCaptureRig.Unity.IL2CPP.dll
+
+# ReShade's add-on SDK headers: fetched at the tag VENDORED.md names
+addon/reshade-sdk/*
+!addon/reshade-sdk/VENDORED.md
+
+# the Voxon runtime: installed separately, never distributed with this
+LedHost.dll
+LedWin.dll
+FTD3XXWU.dll
+ledhost.ini
+
+# ScriptHookV and its .asi loader: the player's to download
+ScriptHookV*
+*.asi
+dinput8.dll
+
+# c1-launcher (Crysis): the player's own download
+c1-launcher*/
+
+# ---- any game's files: none belong here; these catch an accident ----
+*.pak
+*.ucas
+*.utoc
+*.bundle
+*.assets
+*.resS
+GameAssembly.dll
+UnityPlayer.dll
+global-metadata.dat
+*.dmp
+
+# ---- per-PC state the app and the tools write ----
+settings/
+control.txt
+*.log
+selftest.txt
+.claude/settings.local.json

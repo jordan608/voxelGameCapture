@@ -1,0 +1,106 @@
+{
+  "_about": "The games the capture rig supports. One entry per game; adding a game is an entry here plus a profile in rig/profiles. steamAppId / epicAppName / installRegistryKey with installRegistryValue (a registry value holding the install folder, for a game another launcher installs) / xboxFolder (the game's folder in an Xbox app library, XboxGames/<xboxFolder>/Content) let the app find an install by itself; otherwise the user browses to the game's folder. exeDir is the folder holding the *-Win64-Shipping.exe, relative to the install; leave it empty to search for it. exe names the game's exe when it is not *-Win64-Shipping.exe. ue4ss names the UE4SS zip in redist/ the game needs (default UE4SS_v3.0.1.zip), ue4ssHooks the only UE4SS hooks left on for an engine the others do not fit; files the game's UE4SS needs beside it go in rig/unreal/games/<id>/. engineMajor/engineMinor force UE4SS's engine version, only for games whose scan fails without it.",
+  "games": [
+    {
+      "id": "ascent", "name": "The Ascent", "profile": "ascent", "engine": "unreal",
+      "steamAppId": 979690, "exeDir": "TheAscent/Binaries/Win64",
+      "status": "Tested", "graphics": "DX11 or DX12 (DX12 is faster)",
+      "notes": "Built and measured on this game. Six cameras of 1024 px hold 30 volumes a second on an RTX 3060 Ti in DX12."
+    },
+    {
+      "id": "ror2", "name": "Risk of Rain 2", "profile": "ror2", "engine": "unity",
+      "steamAppId": 632360, "exeDir": "",
+      "status": "Tested", "graphics": "DX11",
+      "notes": "Unity, through BepInEx 5. Five 512 px cameras hold 30 volumes a second on an RTX 3060 Ti. The game's own Frame Rate Limit caps it too: raise it if it is set to 30."
+    },
+    {
+      "id": "mk1", "name": "Mortal Kombat 1", "profile": "mk1",
+      "steamAppId": 1971870, "exeDir": "MK12/Binaries/Win64", "exe": "MK12.exe",
+      "ue4ss": "UE4SS_v3.0.1-1165-g12ec45a0.zip", "ue4ssHooks": ["EngineTick"],
+      "status": "Tested", "graphics": "DX12",
+      "notes": "Offline modes only (Practice, Towers, the tutorial): stay out of online play while the rig is installed. The volume follows the middle of the two fighters. NetherRealm's engine fork needs a newer UE4SS, with one hook, and a vtable layout of its own; the installer brings both."
+    },
+    {
+      "id": "witcher3", "name": "The Witcher 3: Wild Hunt", "profile": "witcher3", "engine": "redengine3",
+      "steamAppId": 292030, "exeDir": "bin/x64_dx12", "exe": "witcher3.exe",
+      "status": "Tested", "graphics": "DX12",
+      "notes": "The rig hooks the game's renderer and renders the world again from each face of the cube in the same frame as the player's view: about 40 complete cubes a second with four faces on an RTX 3060 Ti, and the player keeps the controls and sees every frame. Uncap the frame rate. Turn off anti-aliasing, sharpening, motion blur, blur, depth of field, frame generation and dynamic resolution. The HUD stays on: the rig keeps it out of the faces. A script mod: another mod that replaces the player script must be merged with it first."
+    },
+    {
+      "id": "cyberpunk2077", "name": "Cyberpunk 2077", "profile": "cyberpunk2077", "engine": "redengine4",
+      "steamAppId": 1091500, "exeDir": "bin/x64", "exe": "Cyberpunk2077.exe",
+      "status": "Tested", "graphics": "DX12",
+      "notes": "The game's own render-to-texture cameras - the kind holocalls use - five of them on V, rendered in the same frame as the player's view: 30 complete cubes a second with five faces of 512 px on an RTX 3060 Ti, the game at about 63 frames a second, the player's controls, frames and HUD untouched. The installer adds Cyber Engine Tweaks, RED4ext and Codeware unless the game has them already. After installing, load a save once: the cameras go on V as she is loaded."
+    },
+    {
+      "id": "jfo", "name": "Star Wars Jedi: Fallen Order", "profile": "jfo",
+      "steamAppId": 1172380, "epicAppName": "shoebill",
+      "installRegistryKey": "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Respawn\\Jedi Fallen Order", "installRegistryValue": "Install Dir",
+      "exeDir": "SwGame/Binaries/Win64",
+      "status": "Tested", "graphics": "DX11",
+      "notes": "Unreal Engine 4.21, single player, third person: five faces of 512 px at 30 volumes a second, the game at 60 frames a second. The Epic Games Store copy is installed and started by the EA app, which keeps its folder in the registry; Steam's is found as usual."
+    },
+    {
+      "id": "bf2", "name": "Star Wars Battlefront II (2017)", "profile": "bf2", "engine": "frostbite",
+      "steamAppId": 1237950, "exe": "starwarsbattlefrontii.exe",
+      "installRegistryKey": "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\EA Games\\STAR WARS Battlefront II", "installRegistryValue": "Install Dir",
+      "status": "In progress", "graphics": "DX11",
+      "notes": "Frostbite, no rig module: the add-on adds the cube's faces to the engine's own list of views, and the engine draws them in the same frame as yours - three faces at most (the first three ticked). The volume stands on your soldier's feet. Turn the faces on with F7 once in play. Play offline only: the campaign or Arcade. Keep DirectX 12 off in the game's settings."
+    },
+    {
+      "id": "sims4", "name": "The Sims 4", "profile": "sims4", "engine": "sims4",
+      "steamAppId": 1222670, "exeDir": "Game/Bin", "exe": "TS4_x64.exe",
+      "installRegistryKey": "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Maxis\\The Sims 4", "installRegistryValue": "Install Dir",
+      "status": "In progress", "graphics": "DX11",
+      "notes": "No rig module: the add-on has the game's own renderer draw the lot again from each face's camera, in the same frame as yours. The volume follows the game's camera: the ground it looks at stays at the height the feet are set to, and the volume turns as the camera does. The faces are drawn in a lot, not in the menus. F7 stops and starts them. Keep the game on DirectX 11 (its default)."
+    },
+    {
+      "id": "crysis", "name": "Crysis", "profile": "crysis", "engine": "cryengine2",
+      "steamAppId": 17300, "exeDir": "Bin64", "exe": "Crysis64.exe", "launch": "CrysisC1.exe",
+      "status": "In progress", "graphics": "DX10 (64-bit)",
+      "notes": "The 2007 original, patch 1.2.1, not Remastered. No rig module: the add-on has the game's own 3D engine draw the world again from each face's camera, in the same frame as yours. The volume stands on your feet and turns as you look round. F7 stops and starts the faces. On a current PC the game itself often will not start (it hangs or crashes before its menu, with or without the rig): the community's c1-launcher (github.com/ccomrade/c1-launcher) fixes that - download it yourself and start the game with it. Use the 64-bit DirectX 10 game. For the EA app or Xbox app copy, use Set folder... and pick the Crysis folder's Bin64. Launch game starts it through c1-launcher (CrysisC1.exe in Bin64)."
+    },
+    {
+      "id": "gangbeasts", "name": "Gang Beasts", "profile": "gangbeasts", "engine": "unity",
+      "steamAppId": 285900, "xboxFolder": "Gang Beasts",
+      "status": "In progress", "graphics": "DX11",
+      "notes": "Unity IL2CPP, through BepInEx 6, which the installer brings. The first start after installing takes a minute or two longer: BepInEx builds the game's interop assemblies once, and downloads Unity's libraries for that, so be online for it. The volume follows the first beast played on this PC. Local games only: stay out of online play while the rig is installed. The Xbox app (PC Game Pass) copy is found by itself."
+    },
+    {
+      "id": "wukong", "name": "Black Myth: Wukong", "profile": "wukong",
+      "steamAppId": 2358720, "exeDir": "b1/Binaries/Win64", "engineMajor": 5, "engineMinor": 0,
+      "status": "Untested", "graphics": "DX12",
+      "notes": "UE5. Every camera is a full UE5 lit render, so it starts at 15 captures a second."
+    },
+    {
+      "id": "oblivionr", "name": "The Elder Scrolls IV: Oblivion Remastered", "profile": "oblivionr",
+      "steamAppId": 2623190, "exeDir": "OblivionRemastered/Binaries/Win64",
+      "status": "Untested", "graphics": "DX12",
+      "notes": "UE5 over Gamebryo. Third person reads best."
+    },
+    {
+      "id": "sifu", "name": "Sifu", "profile": "sifu",
+      "epicAppName": "d36336f190094951873ed6138ac208d8", "exeDir": "Sifu/Binaries/Win64",
+      "status": "Untested", "graphics": "DX11 or DX12",
+      "notes": "Epic Games Store."
+    },
+    {
+      "id": "mothergunship", "name": "Mothergunship", "profile": "mothergunship",
+      "epicAppName": "ee5c6a659d0f478fba0049fa44429a1f", "exeDir": "TowerOfGuns2/Binaries/Win64",
+      "status": "Untested", "graphics": "DX11",
+      "notes": "Epic Games Store. A first-person shooter: better watched than played from the volume."
+    },
+    {
+      "id": "tsw2", "name": "Train Sim World 2", "profile": "tsw2",
+      "epicAppName": "dd75b5c168d546cc869582c0389f0a1d", "exeDir": "TS2Prototype/Binaries/Win64",
+      "status": "Untested", "graphics": "DX11 or DX12",
+      "notes": "Epic Games Store. A train wants a long window: 25 m to start."
+    },
+    {
+      "id": "ut4", "name": "Unreal Tournament (pre-alpha)", "profile": "ut4",
+      "epicAppName": "UnrealTournamentDev", "exeDir": "",
+      "status": "Untested", "graphics": "DX11",
+      "notes": "Epic Games Store. Bots and LAN only."
+    }
+  ]
+}

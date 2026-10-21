@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The camera rig for Unity games, as a BepInEx 5 plugin.
+
+    net46: the plugin is loaded into the game's own Mono runtime (Unity's .NET 4.x profile), which needs no
+    netstandard facade - some Unity games do not ship one, and a plugin that needs it fails to LOAD, silently.
+    The .NET Framework 4.6 reference assemblies come with Visual Studio.
+
+    Built against a Unity game's own assemblies (UnityManaged) and BepInEx's (BepInExCore, which build.ps1 takes
+    out of redist\'s BepInEx zip). Nothing from either is copied into the output.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net46</TargetFramework>
+    <AssemblyName>VoxonCaptureRig.Unity</AssemblyName>
+    <RootNamespace>VoxonCaptureRig.Unity</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <UnityManaged Condition="'$(UnityManaged)' == ''">D:\SteamLibrary\steamapps\common\Risk of Rain 2\Risk of Rain 2_Data\Managed</UnityManaged>
+    <BepInExCore Condition="'$(BepInExCore)' == ''">$(MSBuildThisFileDirectory)lib</BepInExCore>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- il2cpp\ is the same rig built for IL2CPP games (BepInEx 6), from these sources and a plugin of its own -->
+    <Compile Remove="il2cpp\**" />
+    <None Remove="il2cpp\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="BepInEx">
+      <HintPath>$(BepInExCore)\BepInEx.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(UnityManaged)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(UnityManaged)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>$(UnityManaged)\UnityEngine.InputLegacyModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>
