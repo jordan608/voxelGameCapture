@@ -207,6 +207,11 @@ an add-on older than `redist/`'s: Install rig again, with the game closed, bring
   change, as rig.lua does. Five 512 px faces, 30 volumes a second; Player look covers the hero and the mobs. Blueprint
   Loader is the player's download; Install refuses without it (`docs/RESULTS.md` 25). Minecraft Dungeons (Unreal 4.22)
   is not supported: its exe's stub import table faults UE4SS's import hook (copy protection).
+- Undisputed (Unity 2022.3 IL2CPP, HDRP, DX11, Xbox app; 2026-10-23): in progress. `Hdrp.cs` now works in IL2CPP
+  games too (interop properties, `Il2CppStructArray`, `DelegateSupport.ConvertDelegate`): HDRP's AOV colour and depth
+  reach the add-on, five faces at 30 volumes a second. Not yet seen in a fight: the game ignores injected input, so the
+  player starts one. Madden NFL 26, EA Sports FC 26 and F1 25 (EA Javelin) and Rematch (Easy Anti-Cheat on every
+  launch) are not supported (`docs/RESULTS.md` 26).
 - F1 2020 (EGO, D3D12, Steam; 2026-10-23): the Showroom works. No rig module: with Vehicle Reflections at Ultra High
   the engine draws a reflection cubemap round the car every frame, and the add-on writes the rig's cameras into five of
   its six views (once the renderer has replayed the frame's camera commands) and copies each face's picture and depth

@@ -58,7 +58,8 @@ GRID Legends, DiRT Rally 2.0, DIRT 5 (Codemasters); Command & Conquer Remastered
 
 - **Anti-cheat in single player:** Star Wars Squadrons (Easy Anti-Cheat on every launch), Battlefield 1, V and 6, Plants
   vs. Zombies: Garden Warfare 2, EA Sports WRC, F1 24/25, EA Sports FC 24-27, Madden 24-27, College Football 27 (EA
-  Javelin).
+  Javelin). Madden NFL 26, EA Sports FC 26 and F1 25 checked on this PC's Xbox app installs, 2026-10-23: each holds
+  `EAAntiCheat.GameServiceLauncher.exe` (`docs/RESULTS.md` 26).
 - **Online only:** Battlefield 2042, Anthem (servers shut January 2026), Need for Speed (2015), Plants vs. Zombies:
   Garden Warfare and Battle for Neighborville, Apex Legends, Titanfall, Skate (2025), Rocket Arena, Knockout City, Star
   Wars: The Old Republic.

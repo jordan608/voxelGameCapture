@@ -91,6 +91,12 @@
       "notes": "Unreal 5.6. The game's code is protected, so the rig comes in as a Blueprint Loader mod: get Blueprint Loader from Nexus Mods (Minecraft Dungeons II, Blueprint Loader) and put its BlueprintLoader folder in the game's Dungeons\\Content\\Paks\\~mods folder (make ~mods if it is not there) before Install rig. The volume stands on your hero's feet; Player look covers your hero and the mobs. The mod reads the app's settings twice a second, so changes take half a second. Offline play only: stay out of online games while the rig is installed. The Xbox app (PC Game Pass) copy is found by itself."
     },
     {
+      "id": "undisputed", "name": "Undisputed", "profile": "undisputed", "engine": "unity",
+      "xboxFolder": "Undisputed",
+      "status": "In progress", "graphics": "DX11",
+      "notes": "Unity IL2CPP with Unity's high-definition renderer, through BepInEx 6, which the installer brings. The first start after installing takes a minute or two longer: BepInEx builds the game's interop assemblies once, and downloads Unity's libraries for that, so be online for it. The volume holds what the game's camera looks at - the ring - and turns with it. Offline fights only: stay out of online play while the rig is installed. The Xbox app (PC Game Pass) copy is found by itself."
+    },
+    {
       "id": "wukong", "name": "Black Myth: Wukong", "profile": "wukong",
       "steamAppId": 2358720, "exeDir": "b1/Binaries/Win64", "engineMajor": 5, "engineMinor": 0,
       "status": "Untested", "graphics": "DX12",

@@ -631,7 +631,8 @@ internal static class SelfTest
         Check(Same(once, twice), "installing again changes nothing");
         Diff(once, twice);
 
-        foreach (string log in new[] { "ReShade.log", "voxon_capture_ue.log" }) File.WriteAllText(Path.Combine(dir, log), "a run");
+        // a run: ReShade2.ini as ReShade writes it when a second process of the game's loads it (Undisputed)
+        foreach (string log in new[] { "ReShade.log", "ReShade2.ini", "voxon_capture_ue.log" }) File.WriteAllText(Path.Combine(dir, log), "a run");
         RigInstaller.Remove(g, dir);
         var after = Snapshot(dir);
         Check(Same(before, after), "Remove leaves the game's folder exactly as it was, after a run too");

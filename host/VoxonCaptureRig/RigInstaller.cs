@@ -560,7 +560,16 @@ internal static class RigInstaller
             }
         }
         TryDelete(Path.Combine(exeDir, AddonLog));
-        if (rec.ReShadeOurs) { TryDelete(Path.Combine(exeDir, "ReShade.log")); TryDelete(Path.Combine(exeDir, "ReShadePreset.ini")); }
+        if (rec.ReShadeOurs)
+        {
+            TryDelete(Path.Combine(exeDir, "ReShade.log"));
+            TryDelete(Path.Combine(exeDir, "ReShadePreset.ini"));
+            // ReShade's numbered settings and logs (ReShade2.ini): written when a second process of the game's loads it
+            // while the first holds ReShade.ini (Undisputed, 2026-10-23)
+            foreach (string f in Directory.EnumerateFiles(exeDir, "ReShade*.*"))
+                if (System.Text.RegularExpressions.Regex.IsMatch(Path.GetFileName(f), @"^ReShade\d+\.(ini|log)$",
+                                                                 System.Text.RegularExpressions.RegexOptions.IgnoreCase)) TryDelete(f);
+        }
         string reshadeIni = Path.Combine(exeDir, "ReShade.ini");
         if (rec.AddonPathSet && !rec.ReShadeIniOurs && File.Exists(reshadeIni))
             Rewrite(reshadeIni, t => PutBack(t, "AddonPath", rec.OldAddonPath));

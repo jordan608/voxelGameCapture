@@ -45,7 +45,10 @@ One capture method, three parts, and one wire between them.
    keeps intermediate textures always, its default - leaving the target's depth empty. So each camera asks URP for no
    depth or opaque texture, post-processing or anti-aliasing, and while the rig's cameras render, the renderer's
    features are off and its intermediate textures left to "auto"; straight after, it is as the game had it (`Urp.cs`,
-   all by reflection, nothing in a game without URP).
+   all by reflection, nothing in a game without URP). **HDRP games** (the High Definition Render Pipeline) hand a
+   camera's target only the finished picture: each camera asks HDRP, through an AOV request, for its lit colour into the
+   face's target and its depth into a second target with a code of its own (1100 + face), by which the add-on finds it
+   (`Hdrp.cs`; Mono and IL2CPP, the IL2CPP build through BepInEx's interop classes).
 
    **Blueprint games** (`engine=blueprint`: Minecraft Dungeons II, whose protection ends it once its code is hooked)
    get the same cube as a **content mod**: a Blueprint actor that Blueprint Loader, the player's download, spawns in

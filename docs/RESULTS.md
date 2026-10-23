@@ -1009,3 +1009,34 @@ through Blueprint Loader, and the rig went in as one, with none of the game's co
 - Both folders were checked file by file after Remove rig against lists taken before the install (the only files left
   are ones the game writes itself when it runs: Minecraft Dungeons' `ClockSkew.json` and an empty `debug.log`).
   Minecraft Dungeons was not tried through a content mod.
+
+## 26. Undisputed (Unity 2022.3 IL2CPP, HDRP), and four games with anti-cheat (Xbox app), 2026-10-23
+
+The user's list after Minecraft Dungeons II: Madden NFL 26, EA Sports FC 26, Undisputed, Rematch and F1 25, all
+Xbox app (PC Game Pass) copies on this PC. Each install was looked at before anything went in.
+
+- **Madden NFL 26, EA Sports FC 26, F1 25: not supported - EA Javelin anti-cheat.** Each folder holds EA's
+  anti-cheat launcher (`EAAntiCheat.GameServiceLauncher.exe` with its `.cfg` and `.dll`; F1 25 also its installer)
+  *(measured)*. EA's anti-cheat covers single player too (`docs/EA_GAMES.md`), and the rig - ReShade and an add-on in the
+  game's process - is what it exists to stop. Starting the games' exes without it would be getting round it. Nothing was
+  installed. (F1 25 is the EGO engine of F1 2020, whose reflection-cubemap route would otherwise carry over.)
+- **Rematch: not supported - Easy Anti-Cheat on every launch.** The Xbox app starts `start_protected_game.exe`
+  (`MicrosoftGame.config`), Easy Anti-Cheat's launcher, which installs `EasyAntiCheat_EOS` *(measured)*: the same as
+  Gears 5 (section 22). Nothing was installed.
+- **Undisputed** (`D:\XboxGames\Undisputed\Content`, 2.0.6.0; Unity 2022.3.45f1, IL2CPP, HDRP, DX11; no anti-cheat in its
+  folder): **in progress.** The Unity rig's IL2CPP build through BepInEx 6, as Gang Beasts; BepInEx built the game's
+  interop assemblies on the first start (about two minutes) and the rig loaded.
+  - **HDRP under IL2CPP.** HDRP hands a camera's target only its finished picture, never its depth; the rig asks HDRP
+    for the lit colour and the depth through AOV requests (Cities: Skylines II, Mono). `Hdrp.cs` now does the same in
+    IL2CPP games, through BepInEx's interop classes: the game's fields are properties there, the array of outputs an
+    `Il2CppStructArray`, and HDRP's two callbacks game delegates made from ours (`DelegateSupport.ConvertDelegate`).
+    In Undisputed HDRP accepted the requests for all five cameras, the expensive frame settings went off for them, and
+    the add-on found every face and its HDRP depth target (codes 1100-1104) on its first look: 30 volumes a second, the
+    game at its 60 fps.
+  - **Not yet seen in a fight.** Those volumes were empty: on the title screen the rig was pointed (for the test) at the
+    one animated object, which has nothing round it the cameras can see. A fight needs the menus, and the game ignores
+    injected keys and clicks (GameInput, as Gang Beasts): the player has to start one. The profile follows the view - the
+    ring the game's camera looks at, turning with it.
+  - Remove rig left `ReShade2.ini` behind: ReShade writes a numbered settings file when a second process of the game's
+    loads it while the first holds `ReShade.ini`. Remove now deletes ReShade's numbered settings and logs with its own
+    (`--selftest`), and Undisputed's folder was then exactly as before, file by file.

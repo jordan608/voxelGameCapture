@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using BepInEx.Logging;
 using UnityEngine;
-#if !IL2CPP
-using System.Linq.Expressions;
+#if IL2CPP
+using Il2CppInterop.Runtime;
+using Il2CppInterop.Runtime.InteropTypes.Arrays;
 #endif
 
 namespace VoxonCaptureRig.Unity
@@ -22,7 +24,8 @@ namespace VoxonCaptureRig.Unity
     /// target nobody reads.</para>
     ///
     /// <para>All by reflection, the callbacks HDRP wants made at run time: most Unity games have no HDRP, and then this
-    /// does nothing. Mono only; an IL2CPP game with HDRP is not met yet.</para></summary>
+    /// does nothing. Under IL2CPP the same, through BepInEx's interop classes: the game's fields are properties there,
+    /// its arrays and delegates its own, made from ours (Undisputed, 2026-10-23).</para></summary>
     internal sealed class Hdrp
     {
         private const string Hd = "UnityEngine.Rendering.HighDefinition.{0}, Unity.RenderPipelines.HighDefinition.Runtime";
@@ -45,7 +48,6 @@ namespace VoxonCaptureRig.Unity
         public Hdrp(ManualLogSource log)
         {
             _log = log;
-#if !IL2CPP
             _cameraData = Members.TypeOf(string.Format(Hd, "HDAdditionalCameraData"));
             if (_cameraData == null) return;
             _builder = Members.TypeOf(string.Format(Hd, "AOVRequestBuilder"));
@@ -54,7 +56,6 @@ namespace VoxonCaptureRig.Unity
             _allocator = Members.TypeOf(string.Format(Hd, "AOVRequestBufferAllocator"));
             _callback = Members.TypeOf(string.Format(Hd, "FramePassCallback"));
             _rtHandles = Members.TypeOf("UnityEngine.Rendering.RTHandles, Unity.RenderPipelines.Core.Runtime");
-#endif
         }
 
         /// <summary>The game draws with HDRP.</summary>
@@ -63,7 +64,6 @@ namespace VoxonCaptureRig.Unity
         /// <summary>A camera of the rig's: HDRP to copy its lit colour into colour and its depth into depth.</summary>
         public void Setup(Camera lens, RenderTexture colour, RenderTexture depth)
         {
-#if !IL2CPP
             try
             {
                 object data = Members.ComponentOf(lens.gameObject, _cameraData, add: true);
@@ -73,21 +73,21 @@ namespace VoxonCaptureRig.Unity
                 Type handle = colourHandle.GetType();
                 // The target HDRP is to fill for each output asked for.
                 ParameterExpression id = Expression.Parameter(_buffers, "id");
-                Delegate allocator = Expression.Lambda(_allocator,
+                Delegate allocator = Expression.Lambda(Ours(_allocator),
                     Expression.Condition(Expression.Equal(Expression.Convert(id, typeof(int)), Expression.Constant(Color)),
                                          Expression.Constant(colourHandle, handle), Expression.Constant(depthHandle, handle)),
                     id).Compile();
                 // Called once the outputs are filled: nothing more to do.
                 ParameterExpression[] args = _callback.GetMethod("Invoke").GetParameters()
                                                       .Select(p => Expression.Parameter(p.ParameterType, p.Name)).ToArray();
-                Delegate done = Expression.Lambda(_callback, Expression.Empty(), args).Compile();
+                Delegate done = Expression.Lambda(Ours(_callback), Expression.Empty(), args).Compile();
                 Array outputs = Array.CreateInstance(_buffers, 2);
                 outputs.SetValue(Enum.ToObject(_buffers, Color), 0);
                 outputs.SetValue(Enum.ToObject(_buffers, DepthStencil), 1);
                 object request = _request.GetMethod("NewDefault", BindingFlags.Public | BindingFlags.Static).Invoke(null, null);
                 object builder = Activator.CreateInstance(_builder);
                 _builder.GetMethods().First(m => m.Name == "Add" && m.GetParameters().Length == 5)
-                        .Invoke(builder, new object[] { request, allocator, null, outputs, done });
+                        .Invoke(builder, new[] { request, Theirs(_allocator, allocator), null, Theirs(outputs), Theirs(_callback, done) });
                 object requests = _builder.GetMethod("Build").Invoke(builder, null);
                 _cameraData.GetMethod("SetAOVRequests").Invoke(data, new[] { requests });
                 if (!_said)
@@ -98,20 +98,55 @@ namespace VoxonCaptureRig.Unity
                 }
             }
             catch (Exception e) { _log.LogWarning($"HDRP: could not ask for the cameras' colour and depth: {e.GetBaseException().Message}"); }
+        }
+
+        /// <summary>The delegate type a lambda for one of HDRP's is made as: HDRP's own under Mono; under IL2CPP, where
+        /// HDRP's are interop classes, the Func or Action of the same signature, which Theirs turns into one.</summary>
+        private static Type Ours(Type theirs)
+        {
+#if IL2CPP
+            MethodInfo invoke = theirs.GetMethod("Invoke");
+            return Expression.GetDelegateType(invoke.GetParameters().Select(p => p.ParameterType)
+                                                    .Append(invoke.ReturnType).ToArray());
+#else
+            return theirs;
+#endif
+        }
+
+        /// <summary>Our delegate as one of HDRP's type: as it is under Mono; under IL2CPP, a delegate of the game's that
+        /// calls it.</summary>
+        private static object Theirs(Type theirs, Delegate ours)
+        {
+#if IL2CPP
+            return typeof(DelegateSupport).GetMethod(nameof(DelegateSupport.ConvertDelegate)).MakeGenericMethod(theirs)
+                                          .Invoke(null, new object[] { ours });
+#else
+            return ours;
+#endif
+        }
+
+        /// <summary>An array of HDRP's values as the game takes it: as it is under Mono; under IL2CPP, an array of the
+        /// game's.</summary>
+        private static object Theirs(Array ours)
+        {
+#if IL2CPP
+            return Activator.CreateInstance(typeof(Il2CppStructArray<>).MakeGenericType(ours.GetType().GetElementType()), ours);
+#else
+            return ours;
 #endif
         }
 
         /// <summary>The camera's frame settings its own, with the Off ones off. HDRP takes a field from a camera's own
         /// settings only where its override mask has that field's bit; the settings and the mask are structs, set back
-        /// whole. The settings are public only as a by-reference property, so the field behind it is used.</summary>
+        /// whole. The settings are public only as a by-reference property, so the field behind it is used (a property
+        /// of the same name under IL2CPP, as every field of the game's classes).</summary>
         private void Lighten(object data)
         {
             Type field = Members.TypeOf(string.Format(Hd, "FrameSettingsField"));
-            FieldInfo settingsField = _cameraData.GetField("m_RenderingPathCustomFrameSettings", BindingFlags.NonPublic | BindingFlags.Instance);
-            FieldInfo maskField = _cameraData.GetField("renderingPathCustomFrameSettingsOverrideMask");
-            object settings = settingsField.GetValue(data), mask = maskField.GetValue(data);
-            FieldInfo bitsField = mask.GetType().GetField("mask");
-            object bits = bitsField.GetValue(mask);
+            const string settingsName = "m_RenderingPathCustomFrameSettings", maskName = "renderingPathCustomFrameSettingsOverrideMask";
+            object settings = Members.Get(data, settingsName) ?? throw new MissingMemberException(settingsName);
+            object mask = Members.Get(data, maskName) ?? throw new MissingMemberException(maskName);
+            object bits = Members.Get(mask, "mask") ?? throw new MissingMemberException("mask");
             PropertyInfo bit = bits.GetType().GetProperty("Item");
             Type bitIndex = bit.GetIndexParameters()[0].ParameterType;
             MethodInfo setEnabled = settings.GetType().GetMethod("SetEnabled");
@@ -123,9 +158,8 @@ namespace VoxonCaptureRig.Unity
                 setEnabled.Invoke(settings, new[] { f, (object)false });
                 bit.SetValue(bits, true, new[] { Convert.ChangeType(Convert.ToInt32(f), bitIndex) });
             }
-            bitsField.SetValue(mask, bits);
-            settingsField.SetValue(data, settings);
-            maskField.SetValue(data, mask);
+            if (!Members.Set(mask, "mask", bits) || !Members.Set(data, settingsName, settings) || !Members.Set(data, maskName, mask))
+                throw new MissingMemberException("the frame settings could not be set back");
             Members.Set(data, "customRenderingSettings", true);
         }
 

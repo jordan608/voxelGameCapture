@@ -126,7 +126,7 @@ A studio fork may need a UE4SS of its own and a vtable layout (Mortal Kombat 1),
 | Redout: Enhanced Edition | Unreal 4 | Epic | check |  |
 | Relicta | Unreal 4 | Epic | check |  |
 | Relooted | Unreal Engine 5 | Game Pass | check |  |
-| REMATCH | Unreal Engine 5 | Game Pass | check |  |
+| REMATCH | Unreal Engine 5 | Game Pass | Easy Anti-Cheat (measured) | not supported: anti-cheat on every launch (`RESULTS.md` 26) |
 | Remnant II - Standard Edition | Unreal Engine 5 | Game Pass | check |  |
 | Remnant: From the Ashes | Unreal 4 | Epic | check |  |
 | RoboCop: Rogue City | Unreal Engine 5 | Game Pass | check |  |
@@ -390,7 +390,7 @@ IL2CPP games (`GameAssembly.dll`) take BepInEx 6; Unity on D3D12 is not decoded 
 | Tunche | Unity Mono | Epic | check |  |
 | TUNIC | Unity | Game Pass | check |  |
 | Ultimate Sheep Raccoon | Unity | Game Pass | check |  |
-| Undisputed | Unity | Game Pass | check |  |
+| Undisputed | Unity | Game Pass | none (measured) | in progress: IL2CPP + HDRP; depth found, not yet seen in a fight (`RESULTS.md` 26) |
 | Undying | Unity Mono | Epic | check |  |
 | UNO | Unity | Game Pass | check |  |
 | Vampire Crawlers: The Turbo Wildcard from Vampire Survivors | Unity *(Wikipedia)* | Game Pass | check |  |
@@ -519,6 +519,7 @@ Each with its reason. Anti-cheat over the modes that matter is never got round, 
 | Splitgate | Unreal 4 | Steam | anti-cheat: kernel anti-cheat |
 | THE FINALS | Unreal 5 | Steam, Game Pass | anti-cheat: kernel anti-cheat |
 | Battlefield 1 / 4 / V / 2042 / 6 | Frostbite | Steam | anti-cheat: kernel anti-cheat (EA Javelin; Battlefield 6 also needs Secure Boot) |
+| Madden NFL 26, EA Sports FC 26, F1 25 | Frostbite; Frostbite; EGO | Game Pass (EA Play) | anti-cheat: EA Javelin, single player too (measured: `EAAntiCheat.GameServiceLauncher.exe`; `RESULTS.md` 26) |
 | Counter-Strike 2 | Source 2 | Steam | anti-cheat: VAC |
 | Gears of War: E-Day | Unreal Engine 5 | Game Pass | Easy Anti-Cheat (reported) |
 | Gears of War: Reloaded | Unreal Engine 3 | Game Pass | Easy Anti-Cheat (reported) |

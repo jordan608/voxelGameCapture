@@ -61,7 +61,7 @@ Unreal 4 and 5 are what `rig/unreal` covers (UE4SS). Unreal 3 is not: UE4SS star
 | Pigeon Simulator | tinyBuild Riga | Unreal Engine 5 |  |
 | Quarantine Zone: The Last Check | Brigada Games | Unreal Engine 5 |  |
 | Relooted | Nyamakop | Unreal Engine 5 |  |
-| REMATCH | Sloclap | Unreal Engine 5 |  |
+| REMATCH | Sloclap | Unreal Engine 5 | not supported: Easy Anti-Cheat on every launch (`start_protected_game.exe`, measured) |
 | Remnant II - Standard Edition | Gunfire Games | Unreal Engine 5 |  |
 | RoboCop: Rogue City | Teyon | Unreal Engine 5 |  |
 | ROUTINE | Lunar Software | Unreal Engine 5 |  |
@@ -279,7 +279,7 @@ Unreal 4 and 5 are what `rig/unreal` covers (UE4SS). Unreal 3 is not: UE4SS star
 | Transference | Ubisoft Entertainment | Unity |  |
 | TUNIC | ISOMETRICORP Games Ltd | Unity |  |
 | Ultimate Sheep Raccoon | Clever Endeavour Games | Unity |  |
-| Undisputed | Steel City Interactive  | Unity |  |
+| Undisputed | Steel City Interactive  | Unity | in progress: Unity 2022.3 IL2CPP + HDRP (measured), the IL2CPP rig with HDRP's depth; not yet seen in a fight |
 | UNO | Ubisoft | Unity |  |
 | Vampire Crawlers: The Turbo Wildcard from Vampire Survivors | Poncle Limited, Nosebleed Interactive | Unity *(Wikipedia)* |  |
 | Vampire Survivors | Poncle | Phaser, Electron, Unity, Unity |  |
