@@ -26,12 +26,15 @@ namespace VoxonCaptureRig.Unity
         // whose FollowWhen members hold ("!" false, "&" between); its feet from the FollowPoint members ("|" between):
         // Follow.
         public string FollowComponent = "", FollowWhen = "", FollowPoint = "";
+        // ...FollowAll: every one of that class whose FollowWhen members hold, not the first - the feet above the middle
+        // of them all, as low as the lowest, and all their renderers the player's (the two boxers of a fight).
+        public bool FollowAll;
         // FOLLOW VIEW: above 0, the volume follows the point the game's camera looks at, in place of any of those, and
         // holds RadiusM of the world when the camera is this many metres from that point - more as it draws back.
         public float FollowView;
         // ...ViewPoint: where the camera looks, read from the game - "Class, Assembly: member" (Follow.Reading) - in place
-        // of the first thing straight ahead (Cities: Skylines II's camera orbits a point it keeps). FeetHeight: the
-        // ground plane's height, a number or a reading (its sea level); empty, the point's own.
+        // of the first thing straight ahead (Cities: Skylines II's camera orbits a point it keeps). FeetHeight, for any
+        // follow: the ground plane's height, a number or a reading (its sea level; a ring's canvas); empty, the point's own.
         public string ViewPoint = "", FeetHeight = "";
         // SNAPSHOT: change the number and each face's picture is written to a snapshots folder beside the app (Rig).
         public int Snapshot;
@@ -140,6 +143,7 @@ namespace VoxonCaptureRig.Unity
                     case "followComponent": c.FollowComponent = v; break;
                     case "followWhen": c.FollowWhen = v; break;
                     case "followPoint": c.FollowPoint = v; break;
+                    case "followAll": c.FollowAll = F(v, 0) != 0; break;
                     case "followView": c.FollowView = Math.Max(0f, F(v, 0)); break;
                     case "viewPoint": c.ViewPoint = v; break;
                     case "feetHeight": c.FeetHeight = v; break;

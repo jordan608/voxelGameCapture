@@ -390,7 +390,7 @@ IL2CPP games (`GameAssembly.dll`) take BepInEx 6; Unity on D3D12 is not decoded 
 | Tunche | Unity Mono | Epic | check |  |
 | TUNIC | Unity | Game Pass | check |  |
 | Ultimate Sheep Raccoon | Unity | Game Pass | check |  |
-| Undisputed | Unity | Game Pass | none (measured) | in progress: IL2CPP + HDRP; depth found, not yet seen in a fight (`RESULTS.md` 26) |
+| Undisputed | Unity | Game Pass | none (measured) | **working** in a fight: IL2CPP + HDRP (`RESULTS.md` 26) |
 | Undying | Unity Mono | Epic | check |  |
 | UNO | Unity | Game Pass | check |  |
 | Vampire Crawlers: The Turbo Wildcard from Vampire Survivors | Unity *(Wikipedia)* | Game Pass | check |  |

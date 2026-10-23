@@ -316,7 +316,8 @@ namespace VoxonCaptureRig.Unity
         /// (playerModel, "Component.member") when the game keeps it elsewhere.</summary>
         private void ListPlayerRenderers()
         {
-            var list = new List<Renderer>(_player.GetComponentsInChildren<Renderer>());
+            var list = new List<Renderer>();
+            foreach (GameObject go in _follow.All()) list.AddRange(go.GetComponentsInChildren<Renderer>());   // followAll: all of them
             var ids = new HashSet<int>();
             foreach (Renderer r in list) ids.Add(r.GetInstanceID());
             string from = "the followed object";
@@ -397,7 +398,7 @@ namespace VoxonCaptureRig.Unity
                     // for the add-on; the camera's own output, post-processed, goes where nobody reads it.
                     face.Depth = Target($"VoxonRig face {v} depth", w, h);
                     WriteCode(face.Depth, DepthCodeBase + v);
-                    face.Output = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32) { name = $"VoxonRig face {v} output" };
+                    face.Output = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32) { name = $"VoxonRig face {v} output", hideFlags = HideFlags.HideAndDontSave };
                     face.Output.Create();
                     face.Lens.targetTexture = face.Output;
                     _hdrp.Setup(face.Lens, colour, face.Depth);
@@ -437,9 +438,12 @@ namespace VoxonCaptureRig.Unity
 
         private static RenderTexture Target(string name, int w, int h)
         {
+            // HideAndDontSave: kept through the game's Resources.UnloadUnusedAssets at a level change. Under IL2CPP nothing
+            // on the game's side refers to the rig's targets, and Undisputed's fight unloaded them from under HDRP.
             var rt = new RenderTexture(w, h, 32, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear)
             {
                 name = name, useMipMap = false, autoGenerateMips = false, antiAliasing = 1, filterMode = FilterMode.Point,
+                hideFlags = HideFlags.HideAndDontSave,
             };
             rt.Create();
             return rt;
@@ -491,7 +495,7 @@ namespace VoxonCaptureRig.Unity
                 Face f = _faces[v];
                 if (f == null) continue;
                 if (f.Lens != null) { f.Lens.targetTexture = null; Destroy(f.Lens.gameObject); }
-                f.Colour.Release(); Destroy(f.Colour);
+                if (f.Colour != null) { f.Colour.Release(); Destroy(f.Colour); }
                 if (f.PlayerLens != null) { f.PlayerLens.targetTexture = null; Destroy(f.PlayerLens.gameObject); }
                 if (f.PlayerTarget != null) { f.PlayerTarget.Release(); Destroy(f.PlayerTarget); }
                 if (f.SolidLens != null) { f.SolidLens.targetTexture = null; Destroy(f.SolidLens.gameObject); }

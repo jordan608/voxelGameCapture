@@ -20,7 +20,9 @@ namespace VoxonCaptureRig.Unity
     /// one that must be false, "&amp;" between). Its renderers are the player's (player look). The feet are the object's
     /// own position, or where the members followPoint names are ("|" between, each a chain of members ending at a
     /// Transform, GameObject or Component): above the middle of them, as low as the lowest - a ragdoll's hips and feet,
-    /// whose own object stays where it was made.</para>
+    /// whose own object stays where it was made. With followAll, every object of that class whose conditions hold, not
+    /// the first: the feet above the middle of them all (each one's points, or its own place), as low as the lowest, and
+    /// all their renderers the player's - the two boxers of a fight (Undisputed).</para>
     ///
     /// <para>FOLLOW VIEW (followView): for a game watched from a free camera, where nobody is the player (Totally
     /// Accurate Battle Simulator), the feet are the point the game's camera looks at instead: the first thing straight
@@ -38,12 +40,15 @@ namespace VoxonCaptureRig.Unity
         private Type _type;
         private bool _typeTried;
         private object _comp;                           // the followed component, as its own class (Members.Own)
+        private readonly List<object> _comps = new List<object>();   // ...and with followAll, every one followed
+        private int _saidCount;
         private Transform[] _points = new Transform[0];
         private float _nextCheck, _nextFind;
         private bool _viewMode, _viewSet;               // FOLLOW VIEW: on; and a point found already
         private Vector3 _view;                          // ...the point the camera looks at, eased
         private float _viewAt;
-        private Reading _viewPoint, _feetHeight;        // ...viewPoint and feetHeight, as the game has them
+        private Reading _viewPoint, _feetHeight;        // ...viewPoint and feetHeight (any follow), as the game has them
+        private float _now;
 
         /// <summary>The followed object, or null (Unity's null: also when destroyed).</summary>
         public GameObject Object;
@@ -57,15 +62,26 @@ namespace VoxonCaptureRig.Unity
         /// looked at once a second.</summary>
         public bool Find(RigSettings c, float now)
         {
-            string key = $"{c.FollowTag}|{c.FollowComponent}|{c.FollowWhen}|{c.FollowPoint}|{c.FollowView > 0}";
-            if (key != _key) { _key = key; Object = null; _type = null; _typeTried = false; _viewSet = false; }
+            string key = $"{c.FollowTag}|{c.FollowComponent}|{c.FollowWhen}|{c.FollowPoint}|{c.FollowAll}|{c.FollowView > 0}";
+            if (key != _key) { _key = key; Object = null; _comps.Clear(); _type = null; _typeTried = false; _viewSet = false; }
             _viewMode = c.FollowView > 0;
             if (_viewMode) return FindView(c, now);
+            if (_feetHeight?.Spec != c.FeetHeight.Trim()) _feetHeight = new Reading(c.FeetHeight, _log);
+            _now = now;
             if (Object != null)
             {
                 if (now < _nextCheck) return true;
                 _nextCheck = now + CheckSeconds;
-                if (_comp == null || Holds(_comp, c.FollowWhen))
+                if (c.FollowAll)
+                {
+                    FindByComponent(c);                 // all of them looked for again: one may have gone, or come
+                    if (_comps.Count != _saidCount && Object != null)
+                    {
+                        _saidCount = _comps.Count;
+                        _log.LogInfo($"following all {_comps.Count} of them ({c.FollowComponent})");
+                    }
+                }
+                if (Object != null && (_comp == null || Holds(_comp, c.FollowWhen)))
                 {
                     _points = Points(c);
                     return true;
@@ -75,6 +91,7 @@ namespace VoxonCaptureRig.Unity
             if (now < _nextFind) return false;
             _nextFind = now + FindSeconds;
             _comp = null;
+            _comps.Clear();
             if (c.FollowComponent.Length > 0) FindByComponent(c);
             else
             {
@@ -84,13 +101,25 @@ namespace VoxonCaptureRig.Unity
             if (Object == null) return false;
             _points = Points(c);
             _nextCheck = now + CheckSeconds;
-            string said = $"following {Object.name} ({(c.FollowComponent.Length > 0 ? c.FollowComponent : "tag " + c.FollowTag)})" +
+            string said = $"following {(c.FollowAll ? $"all {_comps.Count} of them, the first " : "")}{Object.name} ({(c.FollowComponent.Length > 0 ? c.FollowComponent : "tag " + c.FollowTag)})" +
                           (_points.Length > 0 ? $", feet from {_points.Length} point(s)" : "");
             if (said != _said) { _said = said; _log.LogInfo($"{said} at {Feet()}"); }
             return true;
         }
 
-        /// <summary>The feet: above the middle of the points, as low as the lowest; with none, the object's position.</summary>
+        /// <summary>Every object followed: the followed object, or with followAll each of them.</summary>
+        public IEnumerable<GameObject> All()
+        {
+            if (_comps.Count == 0) { if (Object != null) yield return Object; yield break; }
+            foreach (object comp in _comps)
+            {
+                Component co = (Component)comp;
+                if (co != null) yield return co.gameObject;
+            }
+        }
+
+        /// <summary>The feet: above the middle of the points, as low as the lowest; with none, the object's position. With
+        /// feetHeight, at that height instead: the ground (the ring's canvas, under two boxers followed by their heads).</summary>
         public Vector3 Feet()
         {
             if (_viewMode) return _view;
@@ -102,7 +131,9 @@ namespace VoxonCaptureRig.Unity
                 Vector3 p = t.position;
                 x += p.x; z += p.z; y = Math.Min(y, p.y); n++;
             }
-            return n > 0 ? new Vector3(x / n, y, z / n) : Object.transform.position;
+            Vector3 feet = n > 0 ? new Vector3(x / n, y, z / n) : Object.transform.position;
+            if (_feetHeight != null && _feetHeight.Spec.Length > 0 && Members.Number(_feetHeight.Get(_now), out float ground)) feet.y = ground;
+            return feet;
         }
 
         /// <summary>FOLLOW VIEW: the game's camera, and the point it looks at, read again every frame.</summary>
@@ -165,13 +196,15 @@ namespace VoxonCaptureRig.Unity
                 if (_type == null) _log.LogWarning($"followComponent: no class {c.FollowComponent} in this game");
             }
             if (_type == null) return;
+            _comps.Clear();
             foreach (object comp in Members.FindAll(_type))
             {
                 if (!Holds(comp, c.FollowWhen)) continue;
-                _comp = comp;
-                Object = ((Component)comp).gameObject;
-                return;
+                _comps.Add(comp);
+                if (!c.FollowAll) break;
             }
+            _comp = _comps.Count > 0 ? _comps[0] : null;
+            Object = _comp != null ? ((Component)_comp).gameObject : null;
         }
 
         /// <summary>Every condition true ("!": false). A member that is not there, or not a bool, fails.</summary>
@@ -191,14 +224,21 @@ namespace VoxonCaptureRig.Unity
         private Transform[] Points(RigSettings c)
         {
             var list = new List<Transform>();
-            if (c.FollowPoint.Length == 0) return list.ToArray();
-            object from = _comp ?? Object;
-            foreach (string raw in c.FollowPoint.Split('|'))
+            // FOLLOW ALL: each one's points, or its own place; one object with no points: its place (Feet)
+            foreach (object from in c.FollowAll ? _comps : new List<object> { _comp ?? Object })
             {
-                string chain = raw.Trim();
-                if (chain.Length == 0) continue;
-                Transform t = Members.TransformOf(Members.Get(from, chain));
-                if (t != null) list.Add(t);
+                if (c.FollowPoint.Length == 0)
+                {
+                    if (c.FollowAll) list.Add(((Component)from).transform);
+                    continue;
+                }
+                foreach (string raw in c.FollowPoint.Split('|'))
+                {
+                    string chain = raw.Trim();
+                    if (chain.Length == 0) continue;
+                    Transform t = Members.TransformOf(Members.Get(from, chain));
+                    if (t != null) list.Add(t);
+                }
             }
             return list.ToArray();
         }

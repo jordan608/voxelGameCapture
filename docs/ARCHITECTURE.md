@@ -122,7 +122,8 @@ the volume's centre, on the rig's side.
    and the rig's IL2CPP build - the installer picks by what it finds, and refuses a folder that already has the
    other BepInEx. An IL2CPP game's first start after installing takes a minute or two longer, online: BepInEx 6
    builds the game's interop assemblies once, downloading Unity's base libraries to do it. In testing (Gang Beasts).
-   A game that tags no player: `followComponent`, `followWhen` and `followPoint`; a game with no player at all, watched
+   A game that tags no player: `followComponent`, `followWhen` and `followPoint`, with `followAll` for every object of
+   the class (two boxers: the feet between them) and `feetHeight` for the ground's height; a game with no player at all, watched
    from a free camera: `followView` (above, *The cameras*).
 4. If UE4SS fails to start with *"PS scan timed out"*, add `engineMajor` / `engineMinor` (Wukong needs 5 / 0).
 5. An engine fork UE4SS does not fit (Mortal Kombat 1: the game crashes in UE4SS, or engine calls do nothing): give the

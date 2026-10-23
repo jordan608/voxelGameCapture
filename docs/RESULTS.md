@@ -1033,10 +1033,21 @@ Xbox app (PC Game Pass) copies on this PC. Each install was looked at before any
     In Undisputed HDRP accepted the requests for all five cameras, the expensive frame settings went off for them, and
     the add-on found every face and its HDRP depth target (codes 1100-1104) on its first look: 30 volumes a second, the
     game at its 60 fps.
-  - **Not yet seen in a fight.** Those volumes were empty: on the title screen the rig was pointed (for the test) at the
-    one animated object, which has nothing round it the cameras can see. A fight needs the menus, and the game ignores
-    injected keys and clicks (GameInput, as Gang Beasts): the player has to start one. The profile follows the view - the
-    ring the game's camera looks at, turning with it.
+  - **In a fight (the first-run tutorial bout): working.** The volume follows the view - the ring the broadcast camera
+    looks at, turning with it - and holds the ring floor, the ropes and corner posts, both boxers and the lighting truss
+    above: about 100,000 voxels, 23-27 volumes a second, with five 512 px faces; the game at 26-28 fps at 3840 x 2160
+    (each face is a full HDRP render). The colours come out pale at the profile's exposure. The title screen has nothing
+    the cameras can see. The game ignores injected keys and clicks (GameInput, as Gang Beasts), so for the test its menus
+    were driven by a virtual Input System gamepad from a test-only BepInEx plugin, not part of the rig.
+  - **Centred between the two boxers** (the user's ask): the Unity rig can now follow every object of a class, not the
+    first (`followAll`), its feet above their middle - here each boxer's `BoxerCore` (the game's own class), by its
+    `head`: the component's own transform is not where the boxer stands (following it put the pair at the volume's back
+    edge). The height comes from `feetHeight`, now for any follow, not only the view: the ring's canvas, world height 0.
+    In an AI-only quick fight (Ali against Ali) both boxers stand on the display's centre axis, the canvas across the
+    volume and the ropes round it; about 240,000-280,000 voxels at 22-24 volumes a second (five 768 px faces).
+  - The rig's targets vanished when the fight loaded after its intro (faces found, then never written, and the next
+    rebuild failed releasing them): the game unloads unused assets at a level change, and under IL2CPP nothing on the
+    game's side refers to the rig's render textures. They are now `HideAndDontSave`, which keeps them.
   - Remove rig left `ReShade2.ini` behind: ReShade writes a numbered settings file when a second process of the game's
     loads it while the first holds `ReShade.ini`. Remove now deletes ReShade's numbered settings and logs with its own
     (`--selftest`), and Undisputed's folder was then exactly as before, file by file.

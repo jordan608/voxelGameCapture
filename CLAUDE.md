@@ -209,8 +209,10 @@ an add-on older than `redist/`'s: Install rig again, with the game closed, bring
   is not supported: its exe's stub import table faults UE4SS's import hook (copy protection).
 - Undisputed (Unity 2022.3 IL2CPP, HDRP, DX11, Xbox app; 2026-10-23): in progress. `Hdrp.cs` now works in IL2CPP
   games too (interop properties, `Il2CppStructArray`, `DelegateSupport.ConvertDelegate`): HDRP's AOV colour and depth
-  reach the add-on, five faces at 30 volumes a second. Not yet seen in a fight: the game ignores injected input, so the
-  player starts one. Madden NFL 26, EA Sports FC 26 and F1 25 (EA Javelin) and Rematch (Easy Anti-Cheat on every
+  reach the add-on. The volume stands between the two boxers (`followAll` on `BoxerCore`, by their heads; `feetHeight` the
+  canvas) and holds the ring, about 240,000-280,000 voxels at 22-24 volumes a second, the game at 22-28 fps at 4K. The
+  rig's render textures are `HideAndDontSave` (the game's asset unload took them). The game ignores injected input
+  (GameInput). Madden NFL 26, EA Sports FC 26 and F1 25 (EA Javelin) and Rematch (Easy Anti-Cheat on every
   launch) are not supported (`docs/RESULTS.md` 26).
 - F1 2020 (EGO, D3D12, Steam; 2026-10-23): the Showroom works. No rig module: with Vehicle Reflections at Ultra High
   the engine draws a reflection cubemap round the car every frame, and the add-on writes the rig's cameras into five of

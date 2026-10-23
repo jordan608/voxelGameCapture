@@ -279,7 +279,7 @@ Unreal 4 and 5 are what `rig/unreal` covers (UE4SS). Unreal 3 is not: UE4SS star
 | Transference | Ubisoft Entertainment | Unity |  |
 | TUNIC | ISOMETRICORP Games Ltd | Unity |  |
 | Ultimate Sheep Raccoon | Clever Endeavour Games | Unity |  |
-| Undisputed | Steel City Interactive  | Unity | in progress: Unity 2022.3 IL2CPP + HDRP (measured), the IL2CPP rig with HDRP's depth; not yet seen in a fight |
+| Undisputed | Steel City Interactive  | Unity | **working** in a fight: Unity 2022.3 IL2CPP + HDRP (measured), the IL2CPP rig with HDRP's depth; the ring and both boxers |
 | UNO | Ubisoft | Unity |  |
 | Vampire Crawlers: The Turbo Wildcard from Vampire Survivors | Poncle Limited, Nosebleed Interactive | Unity *(Wikipedia)* |  |
 | Vampire Survivors | Poncle | Phaser, Electron, Unity, Unity |  |

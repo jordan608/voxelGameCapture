@@ -94,7 +94,7 @@
       "id": "undisputed", "name": "Undisputed", "profile": "undisputed", "engine": "unity",
       "xboxFolder": "Undisputed",
       "status": "In progress", "graphics": "DX11",
-      "notes": "Unity IL2CPP with Unity's high-definition renderer, through BepInEx 6, which the installer brings. The first start after installing takes a minute or two longer: BepInEx builds the game's interop assemblies once, and downloads Unity's libraries for that, so be online for it. The volume holds what the game's camera looks at - the ring - and turns with it. Offline fights only: stay out of online play while the rig is installed. The Xbox app (PC Game Pass) copy is found by itself."
+      "notes": "Unity IL2CPP with Unity's high-definition renderer, through BepInEx 6, which the installer brings. The first start after installing takes a minute or two longer: BepInEx builds the game's interop assemblies once, and downloads Unity's libraries for that, so be online for it. The volume stands between the two boxers and turns with the game's camera. Offline fights only: stay out of online play while the rig is installed. The Xbox app (PC Game Pass) copy is found by itself."
     },
     {
       "id": "wukong", "name": "Black Myth: Wukong", "profile": "wukong",
