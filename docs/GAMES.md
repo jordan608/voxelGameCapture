@@ -55,6 +55,11 @@ game itself renders. A game none of the ways above can get into is not supported
 | **The Sims 4** | C (D:), Epic (the EA app installs and starts it) | Maxis's own, 1.128.90.1030 *(measured)* | DX11 *(measured)* | none *(measured)*; single player | no loader: the add-on hooks the game's render job and has its renderer draw each face from a camera of the add-on's (`addon/sims4_views.hpp`) | **Working** (2026-10-18): in a lot, five faces at the game's window size, 30 volumes a second, the game at about 80 fps (170 without); the volume follows the game's camera, its ground at the feet's height (`docs/RESULTS.md` section 19) |
 | **Crysis** (2007) | C (D:), EA Play through the Xbox app (`D:\XboxGames\Crysis`) | CryEngine 2, 1.2.1 build 6156 *(measured)* | DX10, 64-bit *(measured)* | none in single player (PunkBuster: multiplayer servers only) | no loader: the add-on takes the 3D engine's RenderWorld and has the engine draw each face from a camera of the add-on's (`addon/cryengine2_views.hpp`) | **Working, with a flicker** (2026-10-20): five faces, 30 volumes a second, the game at 270-280 fps (374 without); the game itself needs c1-launcher to start on a current PC (`docs/RESULTS.md` section 20). On some capture frames a face's picture is shown in place of the player's view: the cause is found, the fix not yet made |
 | **Gang Beasts** | C (D:), Xbox app (PC Game Pass, `D:\XboxGames\Gang Beasts`) | Unity 2021.3.33 IL2CPP, URP *(measured)* | DX11 *(measured)* | none in local play; stay out of online play | BepInEx 6 (IL2CPP) + the Unity rig's IL2CPP build (`rig/unity/il2cpp`), extra cameras | **Working in a local match** (2026-10-21): the rig follows the local beast; five 512 px faces at 30 volumes a second, the game at its 60 fps. URP's renderer features are turned off while the rig's cameras draw, or their depth stays empty (`docs/RESULTS.md` 21) |
+| **Totally Accurate Battle Simulator** | C (D:), Xbox app (PC Game Pass, `D:\XboxGames\Totally Accurate Battle Simulator`) | Unity 2019.4.33 Mono, built-in renderer *(measured)* | DX11 *(measured)* | none *(measured)*; Photon for online battles: campaign and sandbox only | BepInEx 5 + the Unity rig, extra cameras | **Working** (2026-10-21): nobody is the player, so the volume follows the game camera's view (`followView`): the ground it looks at, scaled with how far away that is, turning with it. Five 512 px faces at 30 volumes a second, the game at 440-670 fps (`docs/RESULTS.md` 23) |
+| **Gears 5** | C (D:), Xbox app (PC Game Pass, `D:\XboxGames\Gears 5`) | Unreal 4, The Coalition's fork *(measured: GearGame, 1.1.967.0)* | DX12 | **Easy Anti-Cheat on every launch** *(measured: the Xbox app starts `Gears5_EAC.exe`, EAC's launcher, which starts `Gears5.exe`; its installer adds the EAC service)* | none: UE4SS and ReShade would have to load into the protected process | **Not supported** (2026-10-21): anti-cheat over the campaign too. Starting `Gears5.exe` without its launcher would be getting round the anti-cheat. Nothing was installed |
+| **Minecraft Dungeons** | C (D:), Xbox app (PC Game Pass, `D:\XboxGames\Minecraft Dungeons`) | Unreal 4.22.3 *(measured)* | DX11 *(measured)* | none *(measured)*; a protected exe whose import table is a stub *(measured)* | none: UE4SS faults on the stub import table | **Not supported** (2026-10-23): UE4SS stops the game as it starts (PolyHook's import hook needs name tables the exe does not have); changing the protected exe to suit it would be getting round its protection (`docs/RESULTS.md` 25) |
+| **Minecraft Dungeons II** | C (D:), Xbox app (PC Game Pass, `D:\XboxGames\Minecraft Dungeons II`) | Unreal 5.6.1 with AngelScript *(measured)* | DX12 *(measured)* | none *(measured)*; anti-tamper protection *(measured: encrypted code, an anti-debugger check)* | Blueprint Loader (the player's download) + the rig as a Blueprint mod of ours (`tools/mcdungeons2-mod`), extra cameras; its settings from the app as a PNG | **Working** (2026-10-23): five 512 px faces, 30 volumes a second, the game at 330-420 fps; every Cameras tab setting reaches it within a second; Player look covers the hero and the mobs. UE4SS could not go in: the game ends itself once its code is hooked (`docs/RESULTS.md` 25) |
+| **Gears Tactics** | C (D:), Xbox app (PC Game Pass, `D:\XboxGames\Gears Tactics`) | Unreal 4.11, The Coalition's branch *(measured: UE4SS's scan)* | DX12 *(measured)* | none *(measured)*; copy protection that checks its own folder *(measured)* | none: UE4SS supports 4.12 and up, and the game kills itself when files are added | **Not supported** (2026-10-21): with any file of the rig's in its folder, even none loaded, the game ends itself about 20 s after it starts (fail-fast 0xC0000409, always at exe+0x5D4F600); untouched it runs. Getting round that would be getting round its protection (`docs/RESULTS.md` 22) |
 | **GTA V** | **B, other Steam account** | RAGE, build 3889 Legacy *(measured)* | DX11 | BattlEye for GTA Online; story mode runs with `-nobattleye` | ScriptHookV + ScriptHookVDotNet; route 3 needed | A scripted camera swept through 4 poses at about 43 Hz left the monitor 22% of frames: **not working well**, and sweeps are now ruled out. Needs route 3, the renderer hooked, on Machine B |
 
 ### What each one needs next
@@ -137,6 +142,17 @@ that true as modules are added:
 *Check* in the anti-cheat column means unknown: look for `EasyAntiCheat` or `BattlEye` folders in the
 install. *DX11/12 likely* means it is an Unreal or Unity game, which nearly always run DX11 or DX12.
 
+## All three libraries, by capture method
+
+[`CAPTURE_PLAN.md`](CAPTURE_PLAN.md) puts every game in the Steam, Epic and PC Game Pass libraries under the capture
+method that would get the cube into it - the Unreal rig, the Unity rig, an engine module already built, or a new
+engine module (one per engine, ranked by how many games it would serve) - and lists every game ruled out, with why.
+
+## PC Game Pass (the Xbox app)
+
+Every game in the PC Game Pass catalogue, 515 on 2026-10-22, grouped by engine (Unreal, Unity, the rest), is in
+[`XBOX_GAMES.md`](XBOX_GAMES.md): 123 on Unreal (65 on Unreal 5, 50 on Unreal 4), 132 on Unity.
+
 ## Steam library
 
 From your Steam library (Machine A's screenshots, 2026-10-10, and what is installed on these PCs). GTA V is
@@ -159,7 +175,7 @@ under Machine B's account.
 | The Elder Scrolls V: Skyrim Special Edition | Creation (measured) | DX11 | none | Needs its own rig (SKSE plugin): see focus games |
 | Cyberpunk 2077 | REDengine 4 (measured) | DX12 | none | **Yes**: its own rig (`rig/redengine4`, the engine's render-to-texture cameras): see focus games |
 | The Witcher 3: Wild Hunt (Remastered) | REDengine 3 | DX12 *(measured)* | none | **Yes**: its own rig (`rig/redengine3`, the renderer hooked): see focus games |
-| F1 2020 | EGO | DX11, DX12 | none | No rig for this engine yet |
+| F1 2020 | EGO | DX12 (DX11 crashes here) | none | **Showroom working** (`addon/ego_views.hpp`, the game's own cubemap); in a race the player's own car is left out |
 | Need for Speed Heat | Frostbite | DX11 | none known | No: parked, no extra cameras (`docs/RESULTS.md` 17) |
 | DARK SOULS III | FromSoftware | DX11 | server-side bans online: offline only | No rig for this engine yet |
 | HITMAN 2 | Glacier 2 | DX11, DX12 | none | No rig for this engine yet |

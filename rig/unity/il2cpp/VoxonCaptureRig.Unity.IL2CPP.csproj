@@ -23,7 +23,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Plugin.cs" />
-    <Compile Include="..\Rig.cs;..\Geometry.cs;..\RigSettings.cs;..\SeeThrough.cs;..\Follow.cs;..\Urp.cs" />
+    <Compile Include="..\Rig.cs;..\Geometry.cs;..\RigSettings.cs;..\SeeThrough.cs;..\Follow.cs;..\Urp.cs;..\Hdrp.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="$(GameRoot)\dotnet\System*.dll" Exclude="$(GameRoot)\dotnet\*Native*.dll" Private="false" />
@@ -31,6 +31,6 @@
     <Reference Include="$(GameRoot)\BepInEx\core\BepInEx.Core.dll;$(GameRoot)\BepInEx\core\BepInEx.Unity.IL2CPP.dll" Private="false" />
     <Reference Include="$(GameRoot)\BepInEx\core\Il2CppInterop.Runtime.dll;$(GameRoot)\BepInEx\core\Il2CppInterop.Common.dll" Private="false" />
     <Reference Include="$(GameRoot)\BepInEx\interop\Il2Cppmscorlib.dll" Private="false" />
-    <Reference Include="$(GameRoot)\BepInEx\interop\UnityEngine.CoreModule.dll;$(GameRoot)\BepInEx\interop\UnityEngine.InputLegacyModule.dll" Private="false" />
+    <Reference Include="$(GameRoot)\BepInEx\interop\UnityEngine.CoreModule.dll;$(GameRoot)\BepInEx\interop\UnityEngine.InputLegacyModule.dll;$(GameRoot)\BepInEx\interop\UnityEngine.PhysicsModule.dll;$(GameRoot)\BepInEx\interop\UnityEngine.ImageConversionModule.dll" Private="false" />
   </ItemGroup>
 </Project>

@@ -24,6 +24,8 @@ redist/*
 !redist/voxon_capture_ue.addon64
 !redist/VoxonCaptureRig.Unity.dll
 !redist/VoxonCaptureRig.Unity.IL2CPP.dll
+# and the rig's own Blueprint Loader mods (redist/blueprint/<game id>/), built by tools/mcdungeons2-mod
+!redist/blueprint/
 
 # ReShade's add-on SDK headers: fetched at the tag VENDORED.md names
 addon/reshade-sdk/*
@@ -47,6 +49,7 @@ c1-launcher*/
 *.pak
 *.ucas
 *.utoc
+!redist/blueprint/*/VoxonRig_P.*
 *.bundle
 *.assets
 *.resS

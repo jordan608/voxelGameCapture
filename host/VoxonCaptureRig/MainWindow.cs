@@ -423,12 +423,14 @@ internal sealed class MainWindow : Window
                                 "cameras see it. Below that each camera also captures the surfaces' own colours and the light " +
                                 "is mixed over them: 0% is the surface colours alone, evenly lit, with nothing lost in shadow " +
                                 "or glare. Below 100% every camera renders twice, the second time without lighting."));
-        _expMin = AddSlider(panel, "Auto-exposure: lowest", -10, 10, 0.25, "+0.00;-0.00;0", v =>
+        // Wide: a physically lit game hands over light values thousands of times brighter than a picture's (Cities:
+        // Skylines II's HDRP: about -13 stops), others far dimmer.
+        _expMin = AddSlider(panel, "Auto-exposure: lowest", -24, 16, 0.25, "+0.00;-0.00;0", v =>
         {
             _rig.ExposureMin = (float)v;
             if (_expMax.Value < v) _expMax.Value = v;
         });
-        _expMax = AddSlider(panel, "Auto-exposure: highest", -10, 10, 0.25, "+0.00;-0.00;0", v =>
+        _expMax = AddSlider(panel, "Auto-exposure: highest", -24, 16, 0.25, "+0.00;-0.00;0", v =>
         {
             _rig.ExposureMax = (float)v;
             if (_expMin.Value > v) _expMin.Value = v;
@@ -643,7 +645,7 @@ internal sealed class MainWindow : Window
         long now = Environment.TickCount64;
         if (now - _scaleWrittenAt < 30) return;
         _scaleWrittenAt = now;
-        try { _rig.WriteControlFile(_game, _cfg.BoundR, _cfg.BoundZ); }
+        try { _rig.WriteControlFile(_game, _cfg.BoundR, _cfg.BoundZ, _gameDir); }
         catch (IOException) { }            // a rig was reading it just then: the next step writes it
         catch (UnauthorizedAccessException) { }
     }
@@ -660,7 +662,7 @@ internal sealed class MainWindow : Window
         try
         {
             _rig.Save(_game);
-            _rig.WriteControlFile(_game, _cfg.BoundR, _cfg.BoundZ);
+            _rig.WriteControlFile(_game, _cfg.BoundR, _cfg.BoundZ, _gameDir);
         }
         catch (Exception ex) { Log.Write($"settings: could not save ({ex.Message})"); }
     }

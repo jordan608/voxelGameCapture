@@ -61,8 +61,19 @@ internal static class RigInstaller
         Path.Combine(exeDir, "BepInEx", "core", IsIl2Cpp(exeDir) ? "BepInEx.Unity.IL2CPP.dll" : "BepInEx.dll");
     private static bool IsRed3(GameDef g) => g.Engine == "redengine3";
     private static bool IsRed4(GameDef g) => g.Engine == "redengine4";
-    // No loader and no script: the add-on itself has the engine draw the faces (Frostbite; The Sims 4).
-    private static bool AddonOnly(GameDef g) => g.Engine is "frostbite" or "sims4" or "cryengine2";
+    // No loader and no script: the add-on itself has the engine draw the faces (Frostbite, The Sims 4, CryEngine 2, EGO),
+    // or a Blueprint Loader mod brings the cameras in as game content (BLUEPRINT, below).
+    private static bool AddonOnly(GameDef g) => g.Engine is "frostbite" or "sims4" or "cryengine2" or "ego" or "blueprint";
+
+    // BLUEPRINT (Minecraft Dungeons II): the cameras are a Blueprint Loader mod of ours (tools/mcdungeons2-mod), its pak
+    // files in the game's ~mods folder; Blueprint Loader itself is the player's to get (Nexus Mods), and must be there
+    // first. The app writes the mod's settings beside the game (BlueprintBridge), as the control file is to other rigs.
+    private static bool IsBlueprint(GameDef g) => g.Engine == "blueprint";
+    private const string BlueprintModFolder = "VoxonRig";
+    private static readonly string[] BlueprintLoaderPak = ["BlueprintLoader", "BlueprintLoader_P.pak"];
+    private static string ModsDir(GameDef g, string exeDir) =>
+        Path.GetFullPath(Path.Combine(exeDir, g.ModsDir ?? Path.Combine("..", "..", "Content", "Paks", "~mods")));
+    private static string BlueprintMod(GameDef g, string exeDir) => Path.Combine(ModsDir(g, exeDir), BlueprintModFolder);
 
     private const string Red3Mod = "modVoxonRig";                     // the Witcher 3 script mod's folder under mods\
 
@@ -83,6 +94,7 @@ internal static class RigInstaller
         bool rig = IsUnity(g) ? Directory.Exists(Path.Combine(exeDir, "BepInEx", "plugins", PluginFolder))
                  : IsRed3(g) ? Directory.Exists(Path.Combine(Red3Root(exeDir), "mods", Red3Mod))
                  : IsRed4(g) ? Directory.Exists(Red4Mod(exeDir))
+                 : IsBlueprint(g) ? Directory.Exists(BlueprintMod(g, exeDir))
                  : AddonOnly(g) ? File.Exists(Path.Combine(exeDir, AddonName))
                  : Directory.Exists(Path.Combine(exeDir, "Mods", "VoxonTapUE"));
         if (rig || File.Exists(Path.Combine(exeDir, CaptureIni))) return State.Foreign;
@@ -112,6 +124,9 @@ internal static class RigInstaller
                 : "This game already has a BepInEx that is not BepInEx 5, which the rig needs. Remove the other BepInEx first.");
         if (IsRed3(g)) RefuseRed3(exeDir);
         if (IsRed4(g)) RefuseRed4(rec, exeDir);
+        if (IsBlueprint(g) && !File.Exists(Path.Combine([ModsDir(g, exeDir), .. BlueprintLoaderPak])))
+            throw new InvalidOperationException($"{g.Name} needs Blueprint Loader, which loads the rig's mod: get it from Nexus Mods "
+                + $"({g.Name}, Blueprint Loader), put its BlueprintLoader folder in {ModsDir(g, exeDir)}, then Install rig again.");
         foreach (string f in GameFiles(g))
         {
             string name = Path.GetFileName(f);
@@ -123,10 +138,17 @@ internal static class RigInstaller
         if (IsUnity(g)) InstallUnityRig(rec, exeDir);
         else if (IsRed3(g)) InstallRed3Rig(rec, exeDir);
         else if (IsRed4(g)) InstallRed4Rig(rec, exeDir);
+        else if (IsBlueprint(g)) InstallBlueprintMod(g, rec, exeDir);
         else if (AddonOnly(g)) Log.Write("install: no loader or script for this game: the add-on adds the faces itself");
         else InstallUnrealRig(g, rec, exeDir);
         InstallReShade(rec, exeDir);
         InstallSettings(g, rec, exeDir);
+        if (IsBlueprint(g))
+        {
+            // The mod's settings, until the app writes them for the display it finds (a VX2-XL's size meanwhile).
+            BlueprintBridge.Write(RigSettings.For(g), 4f, 2f, exeDir);
+            Own(rec, exeDir, BlueprintBridge.PathFor(exeDir));
+        }
 
         SaveRecord(exeDir, rec);
         Log.Write($"install: done. Start {g.Name}; the rig arms itself and F7 stops and starts it.");
@@ -230,6 +252,17 @@ internal static class RigInstaller
     {
         string dir = Path.Combine(AppPaths.RigScripts, "games", g.Id);
         return !IsUnity(g) && !AddonOnly(g) && Directory.Exists(dir) ? Directory.EnumerateFiles(dir) : [];
+    }
+
+    // ── Blueprint: the rig's own Blueprint Loader mod, into the game's ~mods folder ──────────────────────────────────
+
+    private static void InstallBlueprintMod(GameDef g, Record rec, string exeDir)
+    {
+        string mod = BlueprintMod(g, exeDir);
+        Directory.CreateDirectory(mod);
+        foreach (string f in Directory.EnumerateFiles(Path.Combine(AppPaths.Redist, "blueprint", g.Id)))
+            Own(rec, exeDir, CopyInto(f, mod));
+        Log.Write($"install: the rig's Blueprint Loader mod in {mod}");
     }
 
     // ── Unity: BepInEx (5 for Mono, 6 for IL2CPP), and the rig as its plugin ───────────────────────
@@ -475,6 +508,7 @@ internal static class RigInstaller
             if (IsUnity(g)) TryDeleteDir(pluginDir);
             else if (IsRed3(g)) { TryDeleteDir(Path.Combine(Red3Root(exeDir), "mods", Red3Mod)); DeleteEmptyDirs(Path.Combine(Red3Root(exeDir), "mods")); }
             else if (IsRed4(g)) { TryDeleteDir(Red4Mod(exeDir)); RemoveRed4Runtime(null, exeDir); }
+            else if (IsBlueprint(g)) { TryDeleteDir(BlueprintMod(g, exeDir)); TryDelete(BlueprintBridge.PathFor(exeDir)); }
             else if (!AddonOnly(g)) { TryDeleteDir(Path.Combine(exeDir, "Mods", "VoxonTapUE")); DropModsLine(exeDir); }
             TryDelete(Path.Combine(exeDir, AddonName));
             TryDelete(Path.Combine(exeDir, AddonLog));
@@ -487,6 +521,11 @@ internal static class RigInstaller
         foreach (string rel in rec.Files.OrderByDescending(f => f.Length))
             TryDelete(Path.Combine(exeDir, rel));
         if (IsRed4(g)) RemoveRed4Runtime(rec, exeDir);
+        else if (IsBlueprint(g))
+        {
+            TryDelete(BlueprintBridge.PathFor(exeDir) + ".tmp");
+            DeleteEmptyDirs(BlueprintMod(g, exeDir));
+        }
         else if (IsRed3(g))
         {
             // The mod's folders, and mods\ itself when nothing else is in it.

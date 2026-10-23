@@ -64,12 +64,15 @@ them on the display.
 
 The list is in [`games.json`](games.json): The Ascent (tested), Risk of Rain 2 (tested), Mortal Kombat 1 (tested), The
 Witcher 3 (tested), Cyberpunk 2077 (tested), Star Wars Jedi: Fallen Order (tested), Star Wars Battlefront II (tested,
-offline), The Sims 4 (tested), Crysis (tested; the game needs c1-launcher to start), Gang Beasts (in progress), Black
+offline), The Sims 4 (tested), Crysis (tested; the game needs c1-launcher to start), Gang Beasts (tested in a local match), Totally Accurate Battle
+Simulator (tested; the volume follows the game camera's view), F1 2020 (the Showroom tested), Minecraft Dungeons II
+(tested; needs Blueprint Loader, the player's download), Black
 Myth: Wukong, Oblivion Remastered, Sifu, Mothergunship, Train Sim World 2, and Unreal Tournament. Unreal Engine 4 and 5
 games on DX11 or DX12 are covered, and Unity games on DX11 (Mono through BepInEx 5; IL2CPP through BepInEx 6, in
 testing), all with the same cube of cameras; The Witcher 3 and Cyberpunk 2077 each have a rig of their own,
-Battlefront II's faces are views of its engine's own, added by the add-on, and The Sims 4's and Crysis's are drawn by
-the game's own renderer from cameras the add-on makes.
+Battlefront II's faces are views of its engine's own, added by the add-on, The Sims 4's and Crysis's are drawn by
+the game's own renderer from cameras the add-on makes, F1 2020's are the game's own reflection cubemap, and Minecraft
+Dungeons II's cube is a Blueprint Loader mod of ours, its code being protected.
 
 [`docs/GAMES.md`](docs/GAMES.md) covers every game in the Steam and Epic libraries: its engine, graphics API, and
 anti-cheat, whether the rig can go in, and how. It also covers the games in focus and where each stands, Skyrim and

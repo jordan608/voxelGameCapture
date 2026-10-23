@@ -13,8 +13,10 @@ internal sealed class GameDef
     /// <summary>"unreal" (rig/unreal, UE4SS), "unity" (rig/unity, BepInEx), "redengine3" (rig/redengine3, a script mod),
     /// "redengine4" (rig/redengine4, a Cyber Engine Tweaks mod), "frostbite" (no rig module: the add-on adds the faces
     /// as views of the engine's own), "sims4" (no rig module: the add-on has the game's renderer draw the faces from
-    /// cameras of its own) or "cryengine2" (no rig module: the add-on has the game's 3D engine draw the faces from
-    /// cameras of its own): which rig module, and installer, it takes.</summary>
+    /// cameras of its own), "cryengine2" (no rig module: the add-on has the game's 3D engine draw the faces from
+    /// cameras of its own), "ego" (Codemasters' EGO engine; no rig module, the add-on works in the game's renderer) or
+    /// "blueprint" (an Unreal game whose cameras come in as a Blueprint Loader mod of ours, tools/mcdungeons2-mod):
+    /// which rig module, and installer, it takes.</summary>
     [JsonPropertyName("engine")] public string Engine { get; set; } = "unreal";
     [JsonPropertyName("steamAppId")] public int? SteamAppId { get; set; }
     [JsonPropertyName("epicAppName")] public string? EpicAppName { get; set; }
@@ -27,6 +29,8 @@ internal sealed class GameDef
     [JsonPropertyName("xboxFolder")] public string? XboxFolder { get; set; }
     [JsonPropertyName("exeDir")] public string ExeDir { get; set; } = "";
     [JsonPropertyName("exe")] public string Exe { get; set; } = "";             // when it is not *-Win64-Shipping.exe
+    /// <summary>BLUEPRINT games: the game's ~mods folder, relative to the exe's (default ..\..\Content\Paks\~mods).</summary>
+    [JsonPropertyName("modsDir")] public string? ModsDir { get; set; }
     /// <summary>How the app's Launch game starts it, when not the way its store does (GameLauncher): a link, or an exe in
     /// the game's folder.</summary>
     [JsonPropertyName("launch")] public string? Launch { get; set; }

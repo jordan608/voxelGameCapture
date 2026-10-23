@@ -34,12 +34,13 @@ internal static class GameLauncher
     public static void Start(string target, string exeDir) =>
         Process.Start(new ProcessStartInfo(target) { UseShellExecute = true, WorkingDirectory = exeDir })?.Dispose();
 
-    /// <summary>An Xbox app (GDK) copy's package, from the appxmanifest.xml beside its exe or a folder or two up:
+    /// <summary>An Xbox app (GDK) copy's package, from the appxmanifest.xml beside its exe or up to three folders up
+    /// (an Unreal game's exe is in Content\&lt;Game&gt;\Binaries\WinStore):
     /// shell:AppsFolder\{name}_{publisher id}!{application id}; null when there is none.</summary>
     public static string? XboxAppLink(string exeDir)
     {
         string? dir = exeDir;
-        for (int up = 0; up < 3 && dir != null; up++, dir = Path.GetDirectoryName(dir))
+        for (int up = 0; up < 4 && dir != null; up++, dir = Path.GetDirectoryName(dir))
         {
             string manifest = Path.Combine(dir, "appxmanifest.xml");
             if (!File.Exists(manifest)) continue;

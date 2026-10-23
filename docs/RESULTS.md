@@ -849,3 +849,163 @@ BepInEx 6 plugin (`rig/unity/il2cpp`), against the interop assemblies BepInEx 6 
   the Cameras tab's brightness lifts them.
 - Not yet: the beast's look checked closely (player look), a second local player. Risk of Rain 2, which shares the
   follow code and now `Urp.cs` (it has no URP, so `Urp` does nothing there), is to be run again.
+
+## 22. Gears 5 and Gears Tactics (The Coalition's Unreal 4 branch, Xbox app): not supported, 2026-10-21
+
+- **Gears 5** (`D:\XboxGames\Gears 5`, 1.1.967.0; Hivebusters is add-on content run by the same exe): the Xbox app
+  starts `Gears5_EAC.exe`, Easy Anti-Cheat's launcher, which starts `Gears5.exe`, and the install adds the Easy
+  Anti-Cheat service - over every mode, the campaign too. Nothing was installed.
+- **Gears Tactics** (`D:\XboxGames\Gears Tactics`, 1.0.151.0, D3D12): no anti-cheat; started straight from its exe.
+  Installed through the app (the standard Unreal install), it ran about 17 s and ended itself: a fail-fast
+  (0xC0000409) in `GearsTactics.exe` at exe+0x5D4F600. UE4SS meanwhile reported the engine as **Unreal 4.11** and
+  failed every scan for the engine's object list and name functions (115 tries): UE4SS supports 4.12 and up. Then,
+  one change at a time, the same end at the same address: with ReShade and the add-on only, and with no DLL of the
+  rig's loading at all (only its settings files and UE4SS's Mods folder present). With the folder put back by Remove
+  rig (checked file by file against a list taken before the install) the game ran on. So the game checks its own
+  folder and ends itself when anything is added - copy protection (reported as Arxan), which the rig does not get
+  round. The ReShade add-on had loaded and its decoder started on the game's D3D12 device before the end.
+- Kept from the attempt: the app's Launch game now finds an Xbox app manifest up to three folders above the exe, where
+  an Unreal game's exe sits (`Content\GearGame\Binaries\WinStore`), with a self-test check.
+- The other Gears games on PC Game Pass: Gears of War 1-3 and Judgment are Xbox 360 games, streamed from the cloud on
+  a PC; Gears of War 4 and Ultimate Edition are old Store (UWP) packages in the locked `WindowsApps` folder (and
+  Ultimate Edition is Unreal 3); Gears of War: Reloaded and E-Day are reported to use Easy Anti-Cheat.
+
+## 23. Totally Accurate Battle Simulator (Unity 2019.4 Mono, D3D11): the volume follows the game camera's view - working, 2026-10-21
+
+The Xbox app (PC Game Pass) copy, `D:\XboxGames\Totally Accurate Battle Simulator\Content`, 1.0.27.0: Unity
+2019.4.33f1, Mono (`TABS_Data\Managed`), Unity's built-in renderer, D3D11. No anti-cheat in the install; the Xbox app
+starts `TABS.exe` directly. Photon's libraries are there for online battles: campaign and sandbox only.
+- The standard Unity install (BepInEx 5 and the rig, ReShade and the add-on) went in through the app and the game ran.
+  The rig is built against Risk of Rain 2's Unity 2021.3; it also builds against this game's own 2019.4 assemblies,
+  so it uses nothing newer, and it loaded and ran here unchanged. Unity's old input is on: F7 is read the usual way.
+- Nobody is the player: armies are placed, then watched from a free camera (or one soldier taken over). The first
+  try stood the volume on the battlefield's middle (`CameraMovement.m_mapCenter`): 30 volumes a second of the sand,
+  about 133,000 voxels, but the fighting was not in it, and what the volume should hold is what the screen shows.
+- So the Unity rig can now follow the view (`followView`, `rig/unity/Follow.cs`): the feet are the first thing
+  straight ahead of the game's camera that the game does not move (the ground, a wall; a soldier's body is a
+  rigidbody, and is passed over), and the volume holds World radius when the camera is `followView` metres from it,
+  in proportion nearer and further; both ease over a fifth of a second. The rig scales itself, every length with the
+  radius (`Geometry.Derive`'s zoom); perspective lenses take the same pictures as of a world that much smaller, so the
+  add-on decodes it at the settings' radius and needs no word of it. Turning with the player turns it with the game's
+  camera. Measured: the volume's centre followed the view, and its scale ran from 1.98 to 4.41 m per display unit (a
+  radius of 8 to 18 m) as the camera drew back; 30 volumes a second, five 512 px faces, 117,000-133,000 voxels, the
+  game at 440-670 fps in battle.
+- The sand fills the faces, so the automatic exposure darkens it (about -0.9 stops): the profile's Brightness is 0.
+- Not yet: the look on the display judged, a unit taken over (`CameraAbilityPossess`), the faces at 1024 px measured.
+
+## 24. F1 2020 (Codemasters' EGO, D3D12): the game's own reflection cubemap, from the add-on's cameras - the Showroom working, 2026-10-23
+
+Steam, `D:\SteamLibrary\steamapps\common\F1 2020`, build 759689. Two exes: `F1_2020.exe` (DirectX 11) and
+`F1_2020_dx12.exe`. No anti-cheat in the install; offline modes only.
+- **DirectX 11 is out on this PC**: the game stopped with "D3D Device has been removed (0x887A0005)" as a race loaded,
+  with the rig in and with it taken out again (Remove rig), with TAA alone and checkerboard off. DirectX 12 runs.
+- **The route.** The game's views (a pass probe in the add-on, `voxon_probe.cmd`, since removed): the player's, the
+  mirrors (512 x 192), the car's reflection map (two car-aligned views) and, with Vehicle Reflections at Ultra High, a
+  **reflection cubemap round the car**: six 512 px views every frame, each the full deferred pipeline (G-buffer,
+  lighting, its own depth; GPU markers `Cubemap_0_-X0GbufferExport`), in a race and in the Showroom, the game at 59 fps.
+  Those are extra cameras drawn in the same frame as the player's: the cube's faces, once they stand where the rig's do.
+- **The views' cameras** (no RTTI in the exe; traced with a hardware-breakpoint debugger and memory scans). Every view
+  is an object with a camera record at +0x10 and last frame's at +0x160 (0x150 bytes: near +0x2C, far +0x30, lens
+  extents +0x34/+0x38, 2 / field of view +0x68, projection +0x70 with reversed depth, world to view +0xB0, view to
+  world +0xF0 with rows right, up, back, place - Frostbite's frame). A cube face's: near 0.001 m, far 200 m, 90 degrees
+  square, along the world's axes, centred on the car. The renderer replays the game's commands once a frame
+  (exe+0x155A0E0, from exe+0x15573D0); a view's camera arrives as a lens command and a transform command, each merged
+  into the record by a handler (exe+0x1497AE0). Written straight after the handler, the rig's camera was half undone by
+  the next command; so the handler only learns which views are the cube's (and where the car is), and the rig's cameras
+  go in once the replay has returned to the per-frame renderer, before anything reads them.
+- **The pictures.** The game names its D3D12 resources after its assets: the cube's colour is
+  `cubemap_target_0` (R11G11B10, 512 px, 6 layers, 9 levels), and every face is drawn with one shared depth buffer
+  (`cubemap_gbuffer_depth_stencil_0`, R24G8). A face's lighting pass binds its slice of the colour with that depth; at
+  that bind the depth holds the face whole and is copied, in the game's own command list, out of the state its barriers
+  left it in. The colour keeps every face until the next frame and is copied at present. The cube's slices are in D3D's
+  order (+X -X +Y -Y +Z -Z) and are the views' looks; the rig's five faces take five of them, the one looking up stays
+  the game's. Decoded in Frames mode (the depth reversed, with each face's near and far).
+- **Measured, the Showroom**: the rig's views showed the car on its turntable from the sides and from above (dumped and
+  looked at); 30 volumes a second to the app, three faces of 512 px, the game at 59 fps (its limiter is at 60; not measured without the rig). At a World
+  radius of 6.5 m the showroom's roof is inside the volume and covers the car; at 2.25 m the car came through (55,000
+  voxels, its own colours), longer than the display at that scale: the profile's radius is 3 m.
+- **In a race** the volume follows the car and turns with the player's view (the view with the screen's lens, found
+  when the game updates it). But the game leaves the player's own car out of its cubemap (no self-reflection): the
+  volume holds the track, the barriers and the other cars, not the player's car. A lead: the per-object render flags
+  the exe prints as `ShouldAllowInEnvmaps` (+0x24 of a render-settings block).
+- While the rig is on, the car's paint reflects the rig's views. The game's settings file (My Games\F1 2020) was
+  changed for the tests: Vehicle Reflections Ultra High, the window 1280 x 720 at 60 fps.
+
+## 25. Minecraft Dungeons II (Unreal 5.6, Xbox app): the rig as a Blueprint Loader mod - working, 2026-10-23; Minecraft Dungeons: not supported
+
+Both from the Xbox app (PC Game Pass); neither has anti-cheat; both exes are protected. Minecraft Dungeons II's
+protection ends the game once its code is hooked, so UE4SS cannot carry the rig there; but the game loads content mods
+through Blueprint Loader, and the rig went in as one, with none of the game's code touched.
+
+**Minecraft Dungeons II through Blueprint Loader: working** (`D:\XboxGames\Minecraft Dungeons II`, 1.1.3.0).
+- **The way in.** Blueprint Loader (ewanhowell5195's, Nexus Mods; the player's own download) loads the pak files in
+  `Dungeons\Content\Paks\~mods\<mod>\` and spawns each mod's `ModActor` Blueprint in every level. The rig's mod
+  (`redist/blueprint/mcdungeons2/VoxonRig_P.*`) is such an actor: rig.lua's cube as a Blueprint, made of the engine's
+  own classes only (a pak mod cannot bring code). ReShade and the add-on go in beside the exe as for any Unreal game;
+  `engine=blueprint` takes the add-on's Unreal path, which finds the targets by their face codes.
+- **Built, not drawn by hand.** `tools/mcdungeons2-mod/make_mod.py` makes the whole Blueprint - 18 capture components,
+  about 640 graph nodes - inside a copy of the Blueprint Mod Template, in Unreal 5.6.1's editor run headless. Stock
+  Python cannot make graph nodes, so a small editor plugin of ours (`VoxonGraph`) makes them for it. The template's
+  `build_mod.py` cooks and packs the result (`tools/mcdungeons2-mod/README.md`).
+- **Settings.** A Blueprint cannot read `control.txt`. The app works the rig out itself - each camera's place, turn,
+  lens and clip, as rig.lua's geometry() and place() do - and writes it with the settings the mod acts on as a 32 x 1
+  PNG of 16 bits a channel beside the game's project (`Dungeons\voxon_rig.png`, `BlueprintBridge.cs`): an image is the
+  one file a Blueprint can read. The mod reads it twice a second (ImportFileAsTexture2D, drawn into a 32-bit float
+  target, read back) - 72 values: each face on or off, its place, turn, lens and clip; the rate; the rig's yaw and
+  turning with the player; the face size; Player look; Lighting below 1; perspective or orthographic. The add-on reads
+  `control.txt` as it always has. Every change on the Cameras tab reached the game within a second (faces off and on,
+  World radius, Lighting, Player look, perspective and orthographic lenses); the rig scale keys move it in half-second
+  steps. The app writes the file only while the rig is installed, so Remove rig leaves the folder as it was.
+- **Rebuilds.** The add-on looks for a face's code only in targets made in its last 5 s, and lets go of a face turned
+  off for 5 s. The first build cleared its targets once: a face turned off and on again was never found again, and the
+  volumes stopped (decoded 0 a second). rig.lua makes new targets whenever which faces, their size, Lighting below 1 or
+  Player look change; the mod now does the same (`CreateRenderTarget2D`, the codes cleared in, captures held off 2 s),
+  and a face turned back on was found again at once.
+- **Player look.** Each face's third capture shows only the level's Pawns, listed again every second: the hero and the
+  mobs take the player's brightness, gamma, saturation and density.
+- **Measured**, the game windowed at about 1980 x 1100: five 512 px faces, 30 volumes a second; about 134,000 voxels at
+  World radius 8 m, 193,000 at 16 m, 259,000 with orthographic lenses; the game at 330-420 fps, about 260-280 with
+  Player look on and Lighting below 100% (three captures a face).
+- **Not in it:** see-through surfaces (a Blueprint has no way to list the materials the cameras meet), and F7 (the
+  Unreal rig binds it in its Lua; the faces' boxes on the Cameras tab do the same).
+- Install rig refuses until Blueprint Loader is in `~mods`, and says where to get it. Remove rig takes out the mod's
+  folder, the settings file, ReShade and the add-on, and leaves Blueprint Loader: checked file by file in the game, and
+  in `--selftest` (section 20).
+
+**Minecraft Dungeons II through UE4SS: not possible.** Kept as the record of why the route above was needed.
+
+- **Minecraft Dungeons** (`D:\XboxGames\Minecraft Dungeons`, `Microsoft.Lovika` 1.17.0.0; Unreal 4.22.3, D3D11).
+  With the rig in, the game stopped as it started, inside UE4SS (0xC0000005 at UE4SS.dll+0x91a840), before UE4SS had
+  written a line. UE4SS hooks `LoadLibrary*` through the import table of every module, the exe first (PolyHook's
+  `IatHook`), and expects each import entry to carry a table of names. Read from the running game's memory, this exe's
+  import table is a stub: every DLL has one import and no name table (`OriginalFirstThunk` 0); its protection fills
+  the real imports in itself. PolyHook reads the exe's header as a name and faults. Both UE4SS builds in `redist/`
+  do the same. Without UE4SS (ReShade and the add-on only) the game ran to its title. Changing the protected exe's
+  import table in memory to suit UE4SS would be working round its protection: not done.
+- **Minecraft Dungeons II** (`D:\XboxGames\Minecraft Dungeons II`, 1.1.3.0; `Dungeons-WinGDK-Shipping.exe`, Unreal
+  **5.6.1** with Hazelight's AngelScript plugin, D3D12). Untouched, it runs. What was found, in order:
+  1. Loaded at the start (UE4SS's `dwmapi.dll`), UE4SS's first thread runs the exe's per-thread start-up code, whose
+     one-time initialiser calls a function still **encrypted in memory** (exe+0x11116a0, a function in `.pdata` whose
+     bytes are noise): the game decrypts its own code later in its start-up. The fault could not be unwound, and the
+     game died in `__chkstk` (ntdll).
+  2. Loaded later, at the title screen (by hand, for the test), UE4SS's scans all succeeded (GUObjectArray,
+     FName::ToString, GameEngineTick, ...; engine 5.6).
+  3. It then read `UClass::ClassDefaultObject` from the wrong place: the AngelScript engine adds 0x60 bytes to UClass
+     after `ClassWithin` (a map with one entry per native function, then a pointer and an int). Measured from the
+     game's objects (KismetStringLibrary, Actor): `ClassConfigName` 0x144, `ClassReps` 0x150, `NetFields` 0x160,
+     `FirstOwnedClassRep` 0x168, `ClassDefaultObject` 0x170, `SparseClassData` 0x178, `SparseClassDataStruct` 0x180,
+     `FuncMap` 0x188, `FuncMapLock` 0x1D8, `AllFunctionsCache` 0x1E0, `AllFunctionsCacheLock` 0x230, `Interfaces`
+     0x238, `ReferenceSchema` 0x248, `NativeFunctionLookupTable` 0x250 (UClass is 0x260 bytes); everything before,
+     and UStruct, UFunction and FField/FProperty, are stock 5.6. With those in a `MemberVariableLayout.ini` beside
+     UE4SS, UE4SS started completely: its hooks in, its object-hash self-test passed, the rig's Lua mod armed.
+  4. About 3 s after UE4SS's hooks went into the game's code, the game ended - no crash, no Windows Error Reporting
+     entry, no Unreal crash report, nothing from UE4SS's own crash handler. In a level, a debugger merely attaching
+     (to watch how it ends, before UE4SS was loaded) met two illegal-instruction probes and the game ended at once.
+  Code decrypted at run time, an anti-debugger check, and a silent end once its code is changed: anti-tamper
+  protection. The Unreal rig has to hook the game's code (at the least its engine tick); finding a way the protection
+  does not notice would be working round it. So the rig went in as content instead (above).
+- Kept: nothing of UE4SS in the code. The UClass layout above is here for anyone who looks at an AngelScript Unreal
+  5.6 game that has no such protection.
+- Both folders were checked file by file after Remove rig against lists taken before the install (the only files left
+  are ones the game writes itself when it runs: Minecraft Dungeons' `ClockSkew.json` and an empty `debug.log`).
+  Minecraft Dungeons was not tried through a content mod.

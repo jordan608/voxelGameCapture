@@ -165,7 +165,7 @@ internal sealed class RigSettings
     /// <summary>Writes the control file for the game being served. Replaced whole, through a temporary file, so the
     /// game never reads half of one. boundR, boundZ: the display's volume - its radius and half-height in display units,
     /// as the Voxon runtime reports it - which the cameras are framed to.</summary>
-    public void WriteControlFile(GameDef g, float boundR, float boundZ)
+    public void WriteControlFile(GameDef g, float boundR, float boundZ, string? exeDir = null)
     {
         var sb = new StringBuilder();
         sb.Append("game=").Append(g.Id).Append('\n');
@@ -208,6 +208,8 @@ internal sealed class RigSettings
         string tmp = AppPaths.ControlFile + ".tmp";
         File.WriteAllText(tmp, sb.ToString());
         File.Move(tmp, AppPaths.ControlFile, overwrite: true);
+        // BLUEPRINT games: the mod in the game cannot read this file, so it gets the rig worked out, beside the game
+        BlueprintBridge.Update(g, this, boundR, boundZ, exeDir);
     }
 }
 

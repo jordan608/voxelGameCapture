@@ -44,7 +44,7 @@ for every game, and kept each game's look its own, lit by the game.
 | 2026-10-16 | Need for Speed Heat parked (only a sweep could get in). Sweeps ruled out. Star Wars Battlefront II through Frostbite's own list of views. |
 | 2026-10-18 | The Sims 4: the game's thumbnail renderer drawing the lot from the add-on's cameras. |
 | 2026-10-20 | Crysis: CryEngine 2's world renderer called once per face; its D3D10 pictures decoded on a D3D11 device of the add-on's. Unity IL2CPP games through BepInEx 6. |
-| 2026-10-21 | Gang Beasts working in a match (URP's intermediate textures). The app's Launch game and Set folder buttons. |
+| 2026-10-21 | Gang Beasts working in a match (URP's intermediate textures). The app's Launch game and Set folder buttons. Gears 5 and Gears Tactics refused (anti-cheat; copy protection). Totally Accurate Battle Simulator, the first game with no player: the volume follows the game camera's view and scales with it. |
 
 ### How the work is done
 
@@ -89,9 +89,11 @@ third-party files, is kept apart from it (and on `github.com/jordan608/CubeRig`)
 
 **In git: our own work.** The app (`host/`), the rigs (`rig/`), the add-on and its shaders (`addon/`), the game list and
 profiles, the tools and the docs. The Voxon SDK wrappers copied from GameKit, and the shaders adapted from Voxon's VLED
-plugin, are Voxon's own. Three built files in `redist/` are ours and stay in git:
-`voxon_capture_ue.addon64`, `VoxonCaptureRig.Unity.dll` and `VoxonCaptureRig.Unity.IL2CPP.dll`. The Unity plugins can
-only be built against a game's own assemblies, so a PC without Risk of Rain 2 or Gang Beasts could not make them.
+plugin, are Voxon's own. Some built files in `redist/` are ours and stay in git:
+`voxon_capture_ue.addon64`, `VoxonCaptureRig.Unity.dll`, `VoxonCaptureRig.Unity.IL2CPP.dll`, and the Minecraft
+Dungeons II mod, `blueprint/mcdungeons2/VoxonRig_P.pak`, `.ucas` and `.utoc`. The Unity plugins can only be built
+against a game's own assemblies, so a PC without Risk of Rain 2 or Gang Beasts could not make them; the mod needs
+Unreal 5.6.1 and the Blueprint Mod Template (`tools/mcdungeons2-mod/README.md`).
 
 **Not in git: everything third-party.** Put these in place by hand after cloning (`.gitignore` keeps them out). Check
 each download against its SHA-256; a different file may not match what the rig was tested with. Keep a copy of the set
@@ -108,10 +110,12 @@ somewhere the team shares: the experimental UE4SS build is a moving tag and may 
 | `cet_1.37.1.zip` (Cyber Engine Tweaks) | `redist/` | github.com/maximegmd/CyberEngineTweaks, release v1.37.1 | MIT | `1855017796a27f518199f5b7d7210ef1db7a5c5f0af468c68e04e6e666ad248c` |
 | `red4ext-1.30.0.zip` | `redist/` | github.com/wopss/RED4ext, release v1.30.0 | MIT | `3a72225c9d2c46c99f4a4159d952b9d24366357c2423eb7ea255c84e9e11c0b0` |
 | `Codeware-1.20.5.zip` | `redist/` | github.com/psiberx/cp2077-codeware, release v1.20.5 | MIT | `102989e199bad650fe6e53395c22bac53fdd7abecc6eeec3b0046886631591f0` |
+| `BlueprintModTemplate` 2.4 (only to build the Minecraft Dungeons II mod; never in the repository or in a game) | a folder of its own outside the repository | Nexus Mods, Minecraft Dungeons II, Blueprint Loader, Files tab (ewanhowell5195) | the author's | `953592b6d0df1ede3de9391ecbcb1eb4813f208ede68c946b406c97b2864e9bf` |
 
 Never anywhere in the repository: the **Voxon runtime** (`LedHost.dll`, `LedWin.dll`, `FTD3XXWU.dll`, `ledhost.ini`;
 the app finds the installed VLED runtime), **ScriptHookV** and its loader (the player downloads them), **c1-launcher**
-(the Crysis player's own download), and **any game's files**. Avalonia comes from NuGet at build time.
+(the Crysis player's own download), **Blueprint Loader** (the Minecraft Dungeons II player's own download), and **any
+game's files**. Avalonia comes from NuGet at build time.
 
 ## Building
 
@@ -124,6 +128,9 @@ its shaders); the Voxon VLED runtime (the simulator); and the third-party files 
    Rain 2's assemblies (`-UnityManaged <game>\<game>_Data\Managed` for another game's). `rig\unity\il2cpp\build.ps1`
    builds the IL2CPP plugin against Gang Beasts' interop assemblies (`-GameRoot <game folder>` for another game's;
    BepInEx 6 must have run there once). Both copy into `redist/`.
+   **The Minecraft Dungeons II mod**, only when `tools/mcdungeons2-mod/make_mod.py` changes: Unreal 5.6.1, the
+   Blueprint Mod Template and the steps in `tools/mcdungeons2-mod/README.md`; its three pak files go into
+   `redist/blueprint/mcdungeons2/`.
 3. **The app**: `dotnet build host\VoxonCaptureRig -c Release`. The build copies `redist/`, `rig/` and `games.json`
    into the app's `payload\`, which is what Install rig puts into games, so **build the app again after anything in
    `redist/` changes**.
@@ -139,7 +146,12 @@ its shaders); the Voxon VLED runtime (the simulator); and the third-party files 
   store page. A kernel anti-cheat over the modes that matter, or a game that is online only, is not supported. Where
   the anti-cheat covers only online play, the rig is for the offline modes, and its notes in `games.json` say so.
 - **Copy protection.** Never patched, bypassed or worked round. A plain exe has the usual sections (`.text`, `.rdata`,
-  `.data`, ...); odd section names or a huge exe are worth a second look before going on.
+  `.data`, ...); odd section names or a huge exe are worth a second look before going on. An Xbox app exe cannot be
+  read on disk; read it from the running game instead. Signs of protection seen so far: an import table with one
+  import per DLL and no name tables, code still encrypted in memory early in the start-up, a game that ends itself
+  when its folder or its code changes or a debugger attaches (Gears Tactics, Minecraft Dungeons I and II:
+  `docs/RESULTS.md` 22 and 25). A game that loads content mods may still take the rig as one, with its code untouched
+  (Minecraft Dungeons II, through Blueprint Loader).
 - **Engine and graphics API**, from the files: Unreal has a `*-Win64-Shipping.exe` and an `Engine` folder; Unity has
   `UnityPlayer.dll` and a `<Name>_Data` folder, with `Managed\` (Mono) or `GameAssembly.dll` (IL2CPP). Other engines
   show themselves in the exe's strings and class names. DX11 and DX12 are decoded directly; DX10 through a D3D11
@@ -153,6 +165,7 @@ its shaders); the Voxon VLED runtime (the simulator); and the third-party files 
 | Unreal Engine 4 or 5 | `rig/unreal`: `SceneCapture2D` cameras from a UE4SS Lua mod | Usually a `games.json` entry and a profile |
 | Unity on DX11, Mono or IL2CPP | `rig/unity`: Unity `Camera`s from a BepInEx 5 or 6 plugin | Usually a `games.json` entry and a profile |
 | An engine with cameras of its own a mod can reach | **Route 1**: a new rig module that places them (Cyberpunk 2077's render-to-texture cameras, `rig/redengine4`) | A module, an installer type, maybe an add-on mode |
+| Unreal, with its code protected, but a content-mod loader | The cube as a **Blueprint mod**, its settings through `BlueprintBridge` (Minecraft Dungeons II, `tools/mcdungeons2-mod`) | A `make_mod.py` for the game, its pak files in `redist/blueprint/<id>/`, `engine: "blueprint"` |
 | Anything else | **Route 3**: the add-on hooks the game's renderer and has it draw the world again from each face's camera (The Witcher 3, Battlefront II, The Sims 4, Crysis) | An add-on mode, its engine file, a self-test case |
 
 ### 3a. An engine the rig already has
@@ -170,8 +183,10 @@ its shaders); the Voxon VLED runtime (the simulator); and the third-party files 
    profile when the player is not a pawn.
 4. **Unity extras**: `followTag` if the player is not tagged `Player`; for a game that tags no player,
    `followComponent` (a class of the game's), `followWhen` (its members that must be true, `!` for false, `&` between)
-   and `followPoint` (where the feet are); `playerModel` when the player's model is kept elsewhere. URP games are
-   handled by `rig/unity/Urp.cs`. Unity on D3D12 is not decoded yet.
+   and `followPoint` (where the feet are); for a game with no player at all, watched from a free camera,
+   `followView` (the volume follows what the camera looks at and scales with how far away it is); `playerModel` when
+   the player's model is kept elsewhere. URP games are handled by `rig/unity/Urp.cs`. Unity on D3D12 is not decoded
+   yet.
 5. Test it (step 4).
 
 ### 3b. A new rig module (route 1)

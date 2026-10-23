@@ -67,6 +67,30 @@
       "notes": "Unity IL2CPP, through BepInEx 6, which the installer brings. The first start after installing takes a minute or two longer: BepInEx builds the game's interop assemblies once, and downloads Unity's libraries for that, so be online for it. The volume follows the first beast played on this PC. Local games only: stay out of online play while the rig is installed. The Xbox app (PC Game Pass) copy is found by itself."
     },
     {
+      "id": "tabs", "name": "Totally Accurate Battle Simulator", "profile": "tabs", "engine": "unity",
+      "steamAppId": 508440, "xboxFolder": "Totally Accurate Battle Simulator",
+      "status": "In progress", "graphics": "DX11",
+      "notes": "Unity (Mono), through BepInEx 5. The volume holds what the game's camera looks at, like a tabletop, and moves, grows and turns with the camera as you pan, zoom and orbit; hold Page Up or Page Down in the game to take in more or less on top of that. Campaign and sandbox only: stay out of online battles while the rig is installed. The Xbox app (PC Game Pass) copy is found by itself."
+    },
+    {
+      "id": "cs2", "name": "Cities: Skylines II", "profile": "cs2", "engine": "unity",
+      "steamAppId": 949230, "xboxFolder": "Cities- Skylines II - PC Edition",
+      "status": "In progress", "graphics": "DX11",
+      "notes": "Unity (Mono) with Unity's high-definition renderer, through BepInEx 5. Not working yet: being probed. The Xbox app (PC Game Pass) copy is found by itself."
+    },
+    {
+      "id": "f1-2020", "name": "F1 2020", "profile": "f1-2020", "engine": "ego",
+      "steamAppId": 1080110, "exe": "F1_2020_dx12.exe",
+      "status": "In progress", "graphics": "DX12",
+      "notes": "Codemasters' EGO engine. No rig module: the add-on puts its cameras into the game's own reflection cubemap, whose six views the engine draws in the same frame as yours. Start the DirectX 12 game (F1_2020_dx12.exe; Steam's launch options) and set Graphics Options, Advanced Setup, Vehicle Reflections to Ultra High: that turns the cubemap on. The Showroom works. In a race the volume follows your car, but the game leaves your own car out of its cubemap, so the volume shows the track and the other cars round it. The car's paint reflects the rig's views while the rig is on. Offline modes only (Grand Prix, Time Trial, career): stay out of online races while the rig is installed. The DirectX 11 game crashes on some PCs as a race loads, with or without the rig."
+    },
+    {
+      "id": "mcdungeons2", "name": "Minecraft Dungeons II", "profile": "mcdungeons2", "engine": "blueprint",
+      "xboxFolder": "Minecraft Dungeons II", "exeDir": "Dungeons/Binaries/WinGDK", "exe": "Dungeons-WinGDK-Shipping.exe",
+      "status": "In progress", "graphics": "DX12",
+      "notes": "Unreal 5.6. The game's code is protected, so the rig comes in as a Blueprint Loader mod: get Blueprint Loader from Nexus Mods (Minecraft Dungeons II, Blueprint Loader) and put its BlueprintLoader folder in the game's Dungeons\\Content\\Paks\\~mods folder (make ~mods if it is not there) before Install rig. The volume stands on your hero's feet; Player look covers your hero and the mobs. The mod reads the app's settings twice a second, so changes take half a second. Offline play only: stay out of online games while the rig is installed. The Xbox app (PC Game Pass) copy is found by itself."
+    },
+    {
       "id": "wukong", "name": "Black Myth: Wukong", "profile": "wukong",
       "steamAppId": 2358720, "exeDir": "b1/Binaries/Win64", "engineMajor": 5, "engineMinor": 0,
       "status": "Untested", "graphics": "DX12",

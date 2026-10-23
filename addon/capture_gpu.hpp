@@ -85,7 +85,7 @@ namespace vxcap
     };
 
     constexpr int kEngineUnreal = 0, kEngineUnity = 1, kEngineRed3 = 2, kEngineRed4 = 3, kEngineFrostbite = 4, kEngineSims4 = 5,
-                  kEngineCryEngine2 = 6;
+                  kEngineCryEngine2 = 6, kEngineEgo = 7;
 
     // key=value lines, ';' comments, surrounding blanks trimmed.
     template <class Apply>
@@ -200,7 +200,7 @@ namespace vxcap
             else if (k == "engine") c.engine = v == "unity" ? kEngineUnity : v == "redengine3" ? kEngineRed3
                                              : v == "redengine4" ? kEngineRed4 : v == "frostbite" ? kEngineFrostbite
                                              : v == "sims4" ? kEngineSims4 : v == "cryengine2" ? kEngineCryEngine2
-                                             : kEngineUnreal;
+                                             : v == "ego" ? kEngineEgo : kEngineUnreal;
             else if (k == "chaseAhead") c.chaseAhead = (float)atof(v.c_str());
             else if (k == "chaseLeft") c.chaseLeft = (float)atof(v.c_str());
             else if (k == "chaseDown") c.chaseDown = (float)atof(v.c_str());

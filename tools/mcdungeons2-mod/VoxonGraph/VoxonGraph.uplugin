@@ -1,0 +1,18 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Voxon Graph",
+	"Description": "Editor only: lets Python build Blueprint event graphs node by node, for make_mod.py (the Voxon capture rig's Minecraft Dungeons II mod). Never packed into a mod.",
+	"Category": "Editor",
+	"CreatedBy": "Voxon",
+	"EnabledByDefault": true,
+	"CanContainContent": false,
+	"Modules": [
+		{
+			"Name": "VoxonGraph",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	]
+}

@@ -37,6 +37,7 @@
 #include <reshade.hpp>
 
 #include <windows.h>
+#include <intrin.h>
 #include <DirectXPackedVector.h>
 #include <d3d10_1.h>
 #include <share.h>
@@ -44,6 +45,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <map>
+#include <set>
 #include <mutex>
 #include <shared_mutex>
 #include <thread>
@@ -58,6 +60,7 @@
 #include "frostbite_views.hpp"
 #include "sims4_views.hpp"
 #include "cryengine2_views.hpp"
+#include "ego_views.hpp"
 #include "Feed.h"
 
 using namespace reshade::api;
@@ -75,6 +78,7 @@ namespace
     constexpr float kSolidCodeBase = 1250.0f;      // a face's solid capture (rig.lua: SOLID_CODE_BASE): below 2048, exact in fp16
     constexpr float kPlayerCodeBase = 1500.0f;     // a face's player capture (rig.lua: PLAYER_CODE_BASE): below 2048, exact in fp16
     constexpr float kGlowCodeBase = 1750.0f;       // a face's glow capture (rig.lua: GLOW_CODE_BASE): below 2048, exact in fp16
+    constexpr float kDepthCodeBase = 1100.0f;      // UNITY HDRP: a face's depth, in a target of its own (Rig.cs: DepthCodeBase)
     constexpr int kHandshakeAttempts = 600;
 
     char g_dir[MAX_PATH] = {};
@@ -194,8 +198,10 @@ namespace
         std::atomic<bool> dirty{ false };
         ID3D11ShaderResourceView* srv = nullptr;
         // UNITY: the depth buffer drawn with this face's target, from the bind event; held, as the target is. Its view
-        // is made on the present thread when it changes.
+        // is made on the present thread when it changes. HDRP: a target of its own instead, found by its own code
+        // (depthCoded), into which HDRP copies the camera's depth - HDRP never draws into the face's target itself.
         std::atomic<uint64_t> depthRes{ 0 };
+        std::atomic<bool> depthCoded{ false };
         uint64_t depthViewOf = 0;
         ID3D11ShaderResourceView* depthSrv = nullptr;
         // SURFACE COLOUR: the face's base-colour target (lighting below 1), found by its own code; held, as res is.
@@ -447,16 +453,16 @@ namespace
     }
 
     // Is (r, g, a) a face code rig.lua wrote? The face index 0-5, 6-11 for a face's surface-colour target, 12-17 for its
-    // player capture, 18-23 its solid capture, 24-29 its glow capture, or -1.
+    // player capture, 18-23 its solid capture, 24-29 its glow capture, 30-35 its depth target (Unity HDRP), or -1.
     int FaceCode(float r, float g, float a)
     {
         if (std::fabs(r - kMarkR) >= 1 || std::fabs(a - kMarkA) >= 2) return -1;
         const int face = (int)std::lround(g - kCodeBase), surface = (int)std::lround(g - kSurfaceCodeBase);
         const int player = (int)std::lround(g - kPlayerCodeBase), solid = (int)std::lround(g - kSolidCodeBase);
-        const int glow = (int)std::lround(g - kGlowCodeBase);
+        const int glow = (int)std::lround(g - kGlowCodeBase), depth = (int)std::lround(g - kDepthCodeBase);
         return (face >= 0 && face < 6) ? face : (surface >= 0 && surface < 6) ? 6 + surface
              : (player >= 0 && player < 6) ? 12 + player : (solid >= 0 && solid < 6) ? 18 + solid
-             : (glow >= 0 && glow < 6) ? 24 + glow : -1;
+             : (glow >= 0 && glow < 6) ? 24 + glow : (depth >= 0 && depth < 6) ? 30 + depth : -1;
     }
 
     void DropGlow(Face& f)
@@ -501,6 +507,7 @@ namespace
         if (f.depthSrv) { f.depthSrv->Release(); f.depthSrv = nullptr; }
         f.depthViewOf = 0;
         Unhold(f.depthRes.exchange(0));
+        f.depthCoded = false;
         Unhold(h);
         DropSurface(f);
         DropPlayer(f);
@@ -529,6 +536,7 @@ namespace
         case DXGI_FORMAT_R24G8_TYPELESS:    sd.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS; break;
         case DXGI_FORMAT_R32G8X24_TYPELESS: sd.Format = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS; break;
         case DXGI_FORMAT_R16_TYPELESS:      sd.Format = DXGI_FORMAT_R16_UNORM; break;
+        case DXGI_FORMAT_R16G16B16A16_TYPELESS: sd.Format = DXGI_FORMAT_R16G16B16A16_FLOAT; break;   // HDRP: depth in red
         default:
             Log("face %d: its %sdepth buffer (format %d) cannot be read by a shader", v, what, (int)td.Format);
             return false;
@@ -645,6 +653,17 @@ namespace
                     const float r = XMConvertHalfToFloat(h[0]), g = XMConvertHalfToFloat(h[1]), a = XMConvertHalfToFloat(h[3]);
                     ctx->Unmap(c.probe, 0);
                     const int face = FaceCode(r, g, a);
+                    if (face >= 30)
+                    {
+                        // UNITY HDRP: the face's depth target, held as the face's depth; the bind event leaves it be.
+                        Face& f = g_face[face - 30];
+                        f.depthCoded = true;
+                        Unhold(f.depthRes.exchange(c.handle));
+                        Log("face %d: depth target found (HDRP), after %d look(s)", face - 30, c.attempts + 1);
+                        c.probe->Release();
+                        it = g_cands.erase(it);
+                        continue;
+                    }
                     if (face >= 24)
                     {
                         // SOLID SURFACES' GLOW: the face's glow capture. A view on it, and it is held as the face's.
@@ -1533,8 +1552,144 @@ namespace
         g_newCands.push_back({ r.handle, w, GetTickCount64() });
     }
 
+    // ---- F1 2020 (engine=ego; ego_views.hpp) -------------------------------------------------------------------------
+    // The view-camera handler hooked: once it has run, a view it updated that is one of the game's cube faces is given
+    // the rig's camera, so the engine draws the cube from the rig's cameras. The cube's targets are known by the names
+    // the game gives them: its colour, an array of six faces, and the depth buffer every face is drawn with in turn.
+    // Each face's depth is copied out of that buffer, in the game's own command list, when the face's lighting pass
+    // binds its slice of the colour - the depth then holds that face whole; the colour, which keeps every face until the
+    // next frame, is copied at present. Both into copies of the add-on's own, which the decode reads (Frames).
+    vxcap::EgoViews g_ego;
+    bool g_egoHooked = false, g_egoFailed = false;
+    std::atomic<bool> g_egoWanted{ false };
+    std::atomic<uint64_t> g_egoColour{ 0 }, g_egoDepth{ 0 };   // the cube's colour and depth targets
+    std::mutex g_egoMtx;                                       // guards what follows; no D3D call while it is held
+    std::set<uint64_t> g_egoLooked;                            // resources whose names have been read
+    std::map<uint64_t, uint32_t> g_egoDepthByList;             // the depth's state as each command list last set it
+    uint32_t g_egoDepthState = (uint32_t)resource_usage::depth_stencil_write;   // ...and as any list last set it
+    uint32_t g_egoColourState = (uint32_t)resource_usage::shader_resource;
+    bool g_egoDepthFresh[6] = {};                              // a slice's depth copied since the last decode
+    resource g_egoCopyColour[6] = {}, g_egoCopyDepth[6] = {};  // the add-on's copies, per slice (present thread)
+    uint32_t g_egoSize = 0, g_egoLevels = 1;                   // the cube's faces: texels square, mip levels
+    format g_egoColourFmt = format::unknown, g_egoDepthFmt = format::unknown;
+    LONGLONG g_egoDecDue = 0;
+    std::atomic<uint64_t> g_egoDepthCopies[6], g_egoColourCopies{ 0 }, g_egoRuns{ 0 };
+
+    uint64_t EgoViewCmdDetour(void* handler, void* command, void* payload, void* extra)
+    {
+        const uint64_t r = g_ego.ViewOriginal()(handler, command, payload, extra);
+        g_ego.AfterViewCommand(handler);
+        return r;
+    }
+    uint64_t EgoReplayDetour(void* renderer, void* queue)
+    {
+        const uint64_t r = g_ego.ReplayOriginal()(renderer, queue);
+        if (g_ego.IsFrameReplay(_ReturnAddress())) g_ego.AfterCommands();
+        return r;
+    }
+
+    // A resource's D3D12 debug name (the game names its targets after their assets), or "".
+    std::string EgoName(uint64_t res)
+    {
+        static const GUID kNameW = { 0x4cca5fd8, 0x921f, 0x42c8, { 0x85, 0x66, 0x70, 0xca, 0xf2, 0xa9, 0xb7, 0x41 } };
+        wchar_t w[200] = {};
+        UINT sw = (UINT)(sizeof w - sizeof(wchar_t));
+        if (FAILED(reinterpret_cast<ID3D12Resource*>(res)->GetPrivateData(kNameW, &sw, w))) return "";
+        char a[400] = {};
+        WideCharToMultiByte(CP_UTF8, 0, w, -1, a, sizeof a, nullptr, nullptr);
+        return a;
+    }
+
+    // A square target bound for the first time: the cube's colour or depth, by its name?
+    void EgoLook(device* dev, uint64_t res)
+    {
+        if (!res) return;
+        {
+            std::lock_guard<std::mutex> lk(g_egoMtx);
+            if (!g_egoLooked.insert(res).second) return;
+        }
+        const resource_desc d = dev->get_resource_desc({ res });
+        if (d.type != resource_type::texture_2d || d.texture.width != d.texture.height) return;
+        const std::string n = EgoName(res);
+        if (n == "eaid://ego_package/cubemap_target_0.image")
+        {
+            g_egoSize = d.texture.width; g_egoLevels = std::max<uint32_t>(1, d.texture.levels); g_egoColourFmt = d.texture.format;
+            g_egoColour = res;
+            Log("ego: the cube's colour: %ux%u, %u layers, %u levels, format %u", d.texture.width, d.texture.height,
+                d.texture.depth_or_layers, d.texture.levels, (unsigned)d.texture.format);
+        }
+        else if (n == "eaid://ego_package/cubemap_gbuffer_depth_stencil_0.image")
+        {
+            g_egoDepthFmt = d.texture.format;
+            g_egoDepth = res;
+            Log("ego: the cube's depth: %ux%u, format %u", d.texture.width, d.texture.height, (unsigned)d.texture.format);
+        }
+    }
+
+    // Targets bound (any recording thread): a rig face's lighting pass - its slice of the cube's colour with the cube's
+    // depth - has its depth copied now, out of the state this list last put it in and back.
+    void EgoBind(command_list* cmd, uint32_t count, const resource_view* rtvs, resource_view dsv)
+    {
+        if (!count || !rtvs[0].handle || !dsv.handle) return;
+        device* dev = cmd->get_device();
+        const uint64_t rt = dev->get_resource_from_view(rtvs[0]).handle, ds = dev->get_resource_from_view(dsv).handle;
+        EgoLook(dev, rt);
+        EgoLook(dev, ds);
+        if (!g_egoWanted || !rt || rt != g_egoColour || ds != g_egoDepth) return;
+        const uint32_t slice = dev->get_resource_view_desc(rtvs[0]).texture.first_layer;
+        if (slice >= 6 || vxcap::EgoFaceOfSlot(slice, g_cfg) < 0) return;
+        resource copy;
+        uint32_t state;
+        {
+            std::lock_guard<std::mutex> lk(g_egoMtx);
+            copy = g_egoCopyDepth[slice];
+            const auto it = g_egoDepthByList.find((uint64_t)cmd);
+            state = it != g_egoDepthByList.end() ? it->second : g_egoDepthState;
+        }
+        if (!copy.handle) return;
+        cmd->barrier({ ds }, (resource_usage)state, resource_usage::copy_source);
+        cmd->copy_texture_region({ ds }, 0, nullptr, copy, 0, nullptr);
+        cmd->barrier({ ds }, resource_usage::copy_source, (resource_usage)state);
+        {
+            std::lock_guard<std::mutex> lk(g_egoMtx);
+            g_egoDepthFresh[slice] = true;
+        }
+        ++g_egoDepthCopies[slice];
+    }
+
+    // The game's barriers on the cube's targets: the states the copies take them out of and give them back in.
+    void EgoBarrier(command_list* cmd, uint32_t count, const resource* res, const resource_usage* to)
+    {
+        const uint64_t depth = g_egoDepth, colour = g_egoColour;
+        if (!depth && !colour) return;
+        for (uint32_t i = 0; i < count; i++)
+        {
+            if (depth && res[i].handle == depth)
+            {
+                std::lock_guard<std::mutex> lk(g_egoMtx);
+                g_egoDepthByList[(uint64_t)cmd] = (uint32_t)to[i];
+                g_egoDepthState = (uint32_t)to[i];
+            }
+            else if (colour && res[i].handle == colour)
+            {
+                std::lock_guard<std::mutex> lk(g_egoMtx);
+                g_egoColourState = (uint32_t)to[i];
+            }
+        }
+    }
+
     void on_destroy_resource(device*, resource r)
     {
+        if (r.handle && (r.handle == g_egoColour || r.handle == g_egoDepth))
+        {
+            if (r.handle == g_egoColour) g_egoColour = 0;
+            if (r.handle == g_egoDepth) g_egoDepth = 0;
+        }
+        if (g_cfg.engine == vxcap::kEngineEgo)
+        {
+            std::lock_guard<std::mutex> lk(g_egoMtx);
+            g_egoLooked.erase(r.handle);
+        }
         Red4Forget(r.handle);
         std::lock_guard<std::mutex> lk(g_candMtx);
         for (const auto& n : g_newCands) if (n.handle == r.handle) { g_deadRes.push_back(r.handle); return; }
@@ -1551,6 +1706,7 @@ namespace
         FbBind(cmd, count, rtvs, dsv);
         if (g_cfg.engine == vxcap::kEngineSims4) Ts4Bind(cmd, count, rtvs, dsv);   // a face being drawn: its own targets
         if (g_cfg.engine == vxcap::kEngineCryEngine2) Ce2Bind(cmd, count, rtvs);  // a face being drawn: its depth target
+        if (g_cfg.engine == vxcap::kEngineEgo) EgoBind(cmd, count, rtvs, dsv);    // a face's lighting: its depth copied
         // REDENGINE3: the depth buffers drawn into at the back buffer's size, counted: the scene's is the one bound most.
         if (g_cfg.engine == vxcap::kEngineRed3 && dsv.handle && g_r3W)
         {
@@ -1589,7 +1745,7 @@ namespace
                 // The face's target, PLAYER LOOK's or SOLID SURFACES': each keeps the depth buffer drawn with it.
                 std::atomic<uint64_t>* keep = f.res == res ? &f.depthRes : f.playerRes == res ? &f.playerDepthRes
                                             : f.solidRes == res ? &f.solidDepthRes : nullptr;
-                if (!keep || *keep == depth) continue;
+                if (!keep || *keep == depth || (keep == &f.depthRes && f.depthCoded)) continue;   // HDRP: its own
                 reinterpret_cast<IUnknown*>(depth)->AddRef();
                 Unhold(keep->exchange(depth));
             }
@@ -1810,6 +1966,7 @@ namespace
     void on_barrier(command_list* cmd, uint32_t count, const resource* res, const resource_usage* from, const resource_usage* to)
     {
         if (g_cfg.engine == vxcap::kEngineRed4) { Red4Barrier(cmd, count, res, from, to); return; }
+        if (g_cfg.engine == vxcap::kEngineEgo) { EgoBarrier(cmd, count, res, to); return; }
         if (g_cfg.engine != vxcap::kEngineRed3) return;
         std::lock_guard<std::mutex> lk(g_r3DepthMtx);
         if (g_r3DepthStates.empty()) return;
@@ -2645,6 +2802,122 @@ namespace
         }
     }
 
+    // F1 2020 at present: the hook put in once, and the next frame's faces planned.
+    void Present12Ego(ID3D12Device* dev12, command_queue* queue, swapchain* sc)
+    {
+        if (dev12 != g_dev12)
+        {
+            std::string err;
+            g_dev12 = dev12;
+            g_decOk = g_dec12.Init(dev12, (ID3D12CommandQueue*)queue->get_native(), err);
+            Log(g_decOk ? "decoder: ready on the game's D3D12 device (EGO)" : "decoder: FAILED %s", err.c_str());
+        }
+        if (!g_egoHooked && !g_egoFailed)
+        {
+            std::string why;
+            g_egoHooked = g_ego.Install((void*)&EgoViewCmdDetour, (void*)&EgoReplayDetour, why);
+            g_egoFailed = !g_egoHooked;
+            if (g_egoHooked) Log("ego: the view-camera handler (exe+0x%X) and the command replay (exe+0x%X) hooked", vxcap::kEgoViewCmdRva, vxcap::kEgoReplayRva);
+            else Log("ego: NOT hooked: %s", why.c_str());
+        }
+        const bool wanted = g_cfg.on && AppThere() && !UserOff(sc, "ego: F7, the rig") && g_egoHooked;
+        float aspect = 0;
+        {
+            const resource_desc bd = queue->get_device()->get_resource_desc(sc->get_current_back_buffer());
+            if (bd.texture.height) aspect = (float)bd.texture.width / (float)bd.texture.height;
+        }
+        g_ego.Plan(g_cfg, g_geo, wanted, aspect);
+        g_egoWanted = wanted;
+        device* dev = queue->get_device();
+        const resource colour = { g_egoColour }, depth = { g_egoDepth };
+        const uint32_t size = g_egoSize;
+
+        // The add-on's copies, one per slice, made when the cube is known (and again if it changes size).
+        if (colour.handle && depth.handle && size)
+        {
+            for (int s = 0; s < 6; s++)
+            {
+                resource& cc = g_egoCopyColour[s];
+                resource& cd = g_egoCopyDepth[s];
+                if (cc.handle && dev->get_resource_desc(cc).texture.width != size) { dev->destroy_resource(cc); cc = { 0 }; }
+                if (cd.handle && dev->get_resource_desc(cd).texture.width != size) { dev->destroy_resource(cd); cd = { 0 }; }
+                resource nc = cc, nd = cd;
+                if (!nc.handle) nc = Red3Copy(dev, resource_desc(size, size, 1, 1, g_egoColourFmt, 1, memory_heap::gpu_only, resource_usage::copy_dest));
+                if (!nd.handle) nd = Red3Copy(dev, resource_desc(size, size, 1, 1, g_egoDepthFmt, 1, memory_heap::gpu_only, resource_usage::copy_dest));
+                std::lock_guard<std::mutex> lk(g_egoMtx);
+                cc = nc; cd = nd;
+            }
+        }
+
+        // Each rig face's picture: its slice of the cube's colour, out of the state the game's last barrier left it in.
+        bool fresh = wanted && colour.handle;
+        int faces = 0;
+        for (int s = 0; s < 6; s++)
+        {
+            if (vxcap::EgoFaceOfSlot((uint32_t)s, g_cfg) < 0) continue;
+            ++faces;
+            std::lock_guard<std::mutex> lk(g_egoMtx);
+            if (!g_egoDepthFresh[s] || !g_egoCopyColour[s].handle) fresh = false;
+        }
+        if (fresh && faces)
+        {
+            uint32_t was;
+            {
+                std::lock_guard<std::mutex> lk(g_egoMtx);
+                was = g_egoColourState;
+                g_egoDepthByList.clear();
+            }
+            command_list* cmd = queue->get_immediate_command_list();
+            cmd->barrier(colour, (resource_usage)was, resource_usage::copy_source);
+            for (int s = 0; s < 6; s++)
+                if (vxcap::EgoFaceOfSlot((uint32_t)s, g_cfg) >= 0)
+                    cmd->copy_texture_region(colour, (uint32_t)s * g_egoLevels, nullptr, g_egoCopyColour[s], 0, nullptr);
+            cmd->barrier(colour, resource_usage::copy_source, (resource_usage)was);
+            queue->flush_immediate_command_list();
+            ++g_egoColourCopies;
+        }
+
+        // A decode when one is due: every rig face, its picture and its depth, from the cameras the records were given.
+        LARGE_INTEGER qpc, qpf;
+        QueryPerformanceCounter(&qpc);
+        QueryPerformanceFrequency(&qpf);
+        const LONGLONG period = qpf.QuadPart / std::max(1, g_cfg.hz);
+        if (g_decOk && fresh && faces && qpc.QuadPart >= g_egoDecDue)
+        {
+            g_egoDecDue = std::max(g_egoDecDue + period, qpc.QuadPart - period);
+            vxcap::Settings cr = g_cfg;
+            cr.faceRes = (int)size;
+            std::string err;
+            if (!g_dec12.Configure(cr.faceRes, err)) { Log("decoder: configure FAILED %s", err.c_str()); g_decOk = false; return; }
+            vxcap::Decoder12::Frames fr;
+            ID3D12Resource* pics[6] = {};
+            const float exposure = g_autoExp * std::pow(2.0f, g_cfg.exposureComp);
+            fr.colourFormat = ColourView(g_egoColourFmt);
+            fr.activeRows = (int)size;
+            for (int v = 0; v < 6; v++) cr.faceOn[v] = false;
+            for (int s = 0; s < 6; s++)
+            {
+                const int k = vxcap::EgoFaceOfSlot((uint32_t)s, g_cfg);
+                if (k < 0) continue;
+                cr.faceOn[k] = true;
+                pics[k] = reinterpret_cast<ID3D12Resource*>(g_egoCopyColour[s].handle);
+                fr.depth[k] = reinterpret_cast<ID3D12Resource*>(g_egoCopyDepth[s].handle);
+                fr.depthFormat[k] = DepthView(g_egoDepthFmt);
+                fr.pack[k] = vxcap::EgoFaceConstants(k, g_cfg, g_geo, exposure, (int)size);
+            }
+            if (g_dec12.Run(pics, cr, g_geo, exposure, 1.0f, nullptr, &fr)) { ++g_runs; ++g_egoRuns; }
+            std::lock_guard<std::mutex> lk(g_egoMtx);
+            for (bool& f : g_egoDepthFresh) f = false;
+        }
+        if (g_decOk)
+        {
+            float lum = 0;
+            uint32_t merged = 0;
+            const int n = g_dec12.Poll(g_read, lum, merged);
+            if (n >= 0) { g_mergeIn += (uint64_t)n + merged; g_mergeOut += merged; Deliver(n, lum); }
+        }
+    }
+
     void Present12(ID3D12Device* dev, ID3D12CommandQueue* q)
     {
         if (dev != g_dev12)
@@ -2713,6 +2986,7 @@ namespace
         else if (api == device_api::d3d11) Present11((ID3D11Device*)d->get_native());
         else if (g_cfg.engine == vxcap::kEngineRed3) Present12Red3((ID3D12Device*)d->get_native(), queue, sc);
         else if (g_cfg.engine == vxcap::kEngineRed4) Present12Red4((ID3D12Device*)d->get_native(), queue, sc);
+        else if (g_cfg.engine == vxcap::kEngineEgo) Present12Ego((ID3D12Device*)d->get_native(), queue, sc);
         else Present12((ID3D12Device*)d->get_native(), (ID3D12CommandQueue*)queue->get_native());
 
         QueryPerformanceCounter(&t1);
@@ -2750,6 +3024,32 @@ namespace
                 Log("redengine3 native views: %.1f world frames/s with faces, %.1f face views/s",
                     (g_r3nWorld - w0) / secs, (g_r3nExtra - x0) / secs);
                 w0 = g_r3nWorld; x0 = g_r3nExtra;
+            }
+            if (g_cfg.engine == vxcap::kEngineEgo)
+            {
+                static uint64_t s0[6], p0[6];
+                uint64_t seen[6], placed[6], faults;
+                g_ego.Counts(seen, placed, faults);
+                float centre[3];
+                double rho;
+                static uint64_t v0;
+                uint64_t views;
+                g_ego.Placement(centre, rho, views);
+                static uint64_t d0[6], c0, r0;
+                uint64_t dc[6];
+                for (int s = 0; s < 6; s++) dc[s] = g_egoDepthCopies[s];
+                Log("ego: cube faces seen %.0f/%.0f/%.0f/%.0f/%.0f/%.0f/s (+X -X +Y -Y +Z -Z), given the rig's camera %.0f/%.0f/%.0f/%.0f/%.0f/%.0f/s, depths copied %.0f/%.0f/%.0f/%.0f/%.0f/%.0f/s, pictures %.1f/s, decoded %.1f/s, faults %llu | cube %s %ux%u | the volume's centre (%.2f, %.2f, %.2f), yaw %.0f",
+                    (seen[0] - s0[0]) / secs, (seen[1] - s0[1]) / secs, (seen[2] - s0[2]) / secs, (seen[3] - s0[3]) / secs,
+                    (seen[4] - s0[4]) / secs, (seen[5] - s0[5]) / secs, (placed[0] - p0[0]) / secs, (placed[1] - p0[1]) / secs,
+                    (placed[2] - p0[2]) / secs, (placed[3] - p0[3]) / secs, (placed[4] - p0[4]) / secs, (placed[5] - p0[5]) / secs,
+                    (dc[0] - d0[0]) / secs, (dc[1] - d0[1]) / secs, (dc[2] - d0[2]) / secs, (dc[3] - d0[3]) / secs, (dc[4] - d0[4]) / secs, (dc[5] - d0[5]) / secs,
+                    (g_egoColourCopies - c0) / secs, (g_egoRuns - r0) / secs,
+                    (unsigned long long)faults, g_egoColour && g_egoDepth ? "found" : "not found", g_egoSize, g_egoSize,
+                    centre[0], centre[1], centre[2], rho * 57.29577951308232);
+                Log("ego: the player's view found in %.0f frames/s", (views - v0) / secs);
+                v0 = views;
+                memcpy(s0, seen, sizeof s0); memcpy(p0, placed, sizeof p0); memcpy(d0, dc, sizeof d0);
+                c0 = g_egoColourCopies; r0 = g_egoRuns;
             }
             if (g_cfg.engine == vxcap::kEngineRed3)
             {
@@ -2872,6 +3172,7 @@ BOOL APIENTRY DllMain(HMODULE mod, DWORD reason, LPVOID)
         g_r3Native.Uninstall();
         g_ts4.Uninstall();
         g_ce2.Uninstall();
+        g_ego.Uninstall();
         g_link.Stop();
         reshade::unregister_addon(mod);
         {

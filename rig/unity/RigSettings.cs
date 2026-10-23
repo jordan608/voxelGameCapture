@@ -26,6 +26,15 @@ namespace VoxonCaptureRig.Unity
         // whose FollowWhen members hold ("!" false, "&" between); its feet from the FollowPoint members ("|" between):
         // Follow.
         public string FollowComponent = "", FollowWhen = "", FollowPoint = "";
+        // FOLLOW VIEW: above 0, the volume follows the point the game's camera looks at, in place of any of those, and
+        // holds RadiusM of the world when the camera is this many metres from that point - more as it draws back.
+        public float FollowView;
+        // ...ViewPoint: where the camera looks, read from the game - "Class, Assembly: member" (Follow.Reading) - in place
+        // of the first thing straight ahead (Cities: Skylines II's camera orbits a point it keeps). FeetHeight: the
+        // ground plane's height, a number or a reading (its sea level); empty, the point's own.
+        public string ViewPoint = "", FeetHeight = "";
+        // SNAPSHOT: change the number and each face's picture is written to a snapshots folder beside the app (Rig).
+        public int Snapshot;
         // PLAYER LOOK: each camera also renders the player alone, so the add-on can give the player a look of its own.
         // PlayerModel: where a game keeps the player's model when it is not under the followed object, as
         // "Component.member" on that object (Risk of Rain 2: ModelLocator.modelTransform); empty, its children alone.
@@ -131,6 +140,10 @@ namespace VoxonCaptureRig.Unity
                     case "followComponent": c.FollowComponent = v; break;
                     case "followWhen": c.FollowWhen = v; break;
                     case "followPoint": c.FollowPoint = v; break;
+                    case "followView": c.FollowView = Math.Max(0f, F(v, 0)); break;
+                    case "viewPoint": c.ViewPoint = v; break;
+                    case "feetHeight": c.FeetHeight = v; break;
+                    case "snapshot": c.Snapshot = (int)F(v, 0); break;
                     case "playerLook": c.PlayerLook = F(v, 0) != 0; break;
                     case "playerModel": c.PlayerModel = v; break;
                     case "seeList": c.SeeList = F(v, 0) != 0; break;

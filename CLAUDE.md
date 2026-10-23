@@ -192,5 +192,26 @@ an add-on older than `redist/`'s: Install rig again, with the game closed, bring
   turns the renderer's features off and its intermediate textures to "auto" while the rig's cameras render only. Five
   512 px faces: 30 volumes a second, the game at its 60 fps (`docs/RESULTS.md` 21). The add-on's statistics line counts
   the draws into each face ("drawn into").
+- Totally Accurate Battle Simulator (Unity 2019.4 Mono, D3D11, Xbox app copy; 2026-10-21): working. Nobody is the
+  player, so the Unity rig follows the game camera's view (`followView`): the feet are the ground the camera looks at,
+  the rig scales itself with the camera's distance (the add-on needs no word of it: perspective is scale-free), and
+  turning with the player turns with the camera. Five 512 px faces, 30 volumes a second (`docs/RESULTS.md` 23).
+- Gears 5 (Easy Anti-Cheat on every launch) and Gears Tactics (ends itself when files are added to its folder; Unreal
+  4.11, below UE4SS) are not supported (`docs/RESULTS.md` 22).
+- Minecraft Dungeons II (Unreal 5.6 with AngelScript, D3D12, Xbox app; 2026-10-23): working in a level, as a
+  **Blueprint Loader mod** (engine=blueprint). Its protection ends the game once its code is hooked (UE4SS worked there
+  only until then), but it loads content mods: the cube is a Blueprint actor, made by `tools/mcdungeons2-mod/make_mod.py`
+  in Unreal 5.6.1's editor with an editor plugin of ours (`VoxonGraph`) and packed into `redist/blueprint/mcdungeons2`.
+  The mod cannot read the control file, so the app writes the worked-out rig as a 16-bit PNG beside the game
+  (`BlueprintBridge.cs`), read twice a second; the mod makes new targets when faces, size, Lighting or Player look
+  change, as rig.lua does. Five 512 px faces, 30 volumes a second; Player look covers the hero and the mobs. Blueprint
+  Loader is the player's download; Install refuses without it (`docs/RESULTS.md` 25). Minecraft Dungeons (Unreal 4.22)
+  is not supported: its exe's stub import table faults UE4SS's import hook (copy protection).
+- F1 2020 (EGO, D3D12, Steam; 2026-10-23): the Showroom works. No rig module: with Vehicle Reflections at Ultra High
+  the engine draws a reflection cubemap round the car every frame, and the add-on writes the rig's cameras into five of
+  its six views (once the renderer has replayed the frame's camera commands) and copies each face's picture and depth
+  out of the cube's targets, known by their D3D12 names (`addon/ego_views.hpp`, `docs/RESULTS.md` 24). In a race the
+  game leaves the player's own car out of its cubemap: the volume shows the track and the other cars. DirectX 11
+  crashes on this PC as a race loads, with or without the rig.
 - Every game: the rig's scale (World radius) from inside the game - hold Page Up / Page Down (the app's Cameras tab
   picks the keys); the volume follows smoothly (`host/VoxonCaptureRig/ScaleKeys.cs`, `docs/ARCHITECTURE.md`).

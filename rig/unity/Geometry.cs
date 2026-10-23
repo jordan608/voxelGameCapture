@@ -24,10 +24,13 @@ namespace VoxonCaptureRig.Unity
         public int SideH;
         public bool Persp;
 
-        public static Geometry Derive(RigSettings c)
+        /// <summary>zoom: FOLLOW VIEW's - the whole rig that much larger: every length here goes with S. Perspective
+        /// lenses then take the same pictures as of a world that much smaller, so the add-on, which decodes at the
+        /// settings' radius, needs no word of it.</summary>
+        public static Geometry Derive(RigSettings c, float zoom = 1f)
         {
             var g = new Geometry();
-            g.S = c.RadiusM / c.BoundR;
+            g.S = c.RadiusM * zoom / c.BoundR;
             g.R = c.BoundR * g.S;
             g.Z = c.BoundZ * g.S;
             g.Persp = c.Perspective;

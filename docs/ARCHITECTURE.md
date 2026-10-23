@@ -31,6 +31,12 @@ One capture method, three parts, and one wire between them.
    component of one of the game's classes (`followComponent`) for which the profile's conditions hold (`followWhen`:
    that class's members, true, or false with `!`, joined by `&`); its feet are the object's position, or above the
    middle of the transforms `followPoint` names and as low as the lowest - a ragdoll's hips and feet (`Follow.cs`).
+   In a game watched from a free camera, where nobody is the player, the volume follows the **view** instead
+   (`followView`): its feet are the first thing straight ahead of the game's camera that the game does not move (a
+   rigidbody is passed over), and it holds World radius when the camera is `followView` metres from that, in proportion
+   nearer and further, eased. The rig scales itself to do it - every length in `Geometry` goes with the radius - and
+   perspective lenses take the same pictures as of a world that much smaller, so the add-on, decoding at the settings'
+   radius, needs no word of it.
    **IL2CPP games** (a `GameAssembly.dll`, no `Managed` folder) get the same rig, built a second time from the same
    sources against BepInEx 6's interop assemblies (`rig/unity/il2cpp/`, its own small entry file); the installer puts
    in BepInEx 6 in place of 5. F7 is read from Windows while the game is in front, as some games turn Unity's old
@@ -40,6 +46,14 @@ One capture method, three parts, and one wire between them.
    depth or opaque texture, post-processing or anti-aliasing, and while the rig's cameras render, the renderer's
    features are off and its intermediate textures left to "auto"; straight after, it is as the game had it (`Urp.cs`,
    all by reflection, nothing in a game without URP).
+
+   **Blueprint games** (`engine=blueprint`: Minecraft Dungeons II, whose protection ends it once its code is hooked)
+   get the same cube as a **content mod**: a Blueprint actor that Blueprint Loader, the player's download, spawns in
+   every level, built by `tools/mcdungeons2-mod/make_mod.py` (`docs/RESULTS.md` 25). It cannot read the control file,
+   so the app works the cameras' places, turns, lenses and clips out itself and writes them, with the settings the mod
+   acts on, as a small 16-bit PNG beside the game (`BlueprintBridge.cs`), which the mod reads twice a second. Like
+   rig.lua it makes new targets, cleared to their codes, whenever which faces, their size, Lighting or Player look
+   change. The add-on needs nothing new: it finds the faces by their codes, as rig.lua's.
 2. **The decode** (`addon/`). A ReShade add-on, loaded as `dxgi.dll` beside the game's exe. It finds the camera
    targets by their face code, then runs two compute passes on the GPU. *Pack* tone-maps the colour, maps its brightness into the Colour range, and encodes depth;
    *compact* turns each pixel into a voxel in display space and keeps **one voxel per display cell**, because the
@@ -84,11 +98,12 @@ the volume's centre, on the rig's side.
 | `rig/redengine3/` | The Witcher 3: a script mod (`voxonRig.ws`) that says where the volume is (or, on a game build the add-on's renderer hook does not know, sweeps the game's own camera round the cube), and `r4Player.patch.json`, the three lines the installer adds to the player's own copy of the game's player script |
 | `rig/redengine4/` | Cyberpunk 2077: a Cyber Engine Tweaks mod (`voxon_rig/init.lua`) that puts five of the engine's own render-to-texture cameras on V and stands them round her |
 | `rig/profiles/` | One settings file per game, the starting values for the Cameras tab |
+| `tools/mcdungeons2-mod/` | Minecraft Dungeons II's rig, a Blueprint Loader mod: `make_mod.py`, which makes it in Unreal 5.6.1's editor, and `VoxonGraph`, the editor plugin that makes its graph nodes. Built into `redist/blueprint/mcdungeons2/` (its `README.md`) |
 | `addon/` | The GPU decode: the ReShade add-on, its shaders, its self-test, its build script |
 | `host/VoxonCaptureRig/` | The app |
-| `redist/` | What the installer puts into a game: UE4SS 3.0.1, BepInEx 5.4.23.5 or BepInEx 6.0.0 be.788 (IL2CPP; LGPL-2.1), or Cyber Engine Tweaks 1.37.1, RED4ext 1.30.0 and Codeware 1.20.5 (all MIT); ReShade 6.7.3 (add-on build), the built add-on, and the built Unity plugins (Mono and IL2CPP). Only the last three are in git; the third-party files are fetched (`DEVELOPER_GUIDE.md`) |
+| `redist/` | What the installer puts into a game: UE4SS 3.0.1, BepInEx 5.4.23.5 or BepInEx 6.0.0 be.788 (IL2CPP; LGPL-2.1), or Cyber Engine Tweaks 1.37.1, RED4ext 1.30.0 and Codeware 1.20.5 (all MIT); ReShade 6.7.3 (add-on build), the built add-on, the built Unity plugins (Mono and IL2CPP), and the built Blueprint mods (`blueprint/<game>/`). Only the last four are in git; the third-party files are fetched (`DEVELOPER_GUIDE.md`) |
 | `docs/` | This file, and `RESULTS.md`, the measurements |
-| `tools/` | `package.ps1`, which builds the folder a player gets |
+| `tools/` | `package.ps1`, which builds the folder a player gets; `mcdungeons2-mod/` (above) |
 
 ## Adding a game
 
@@ -104,7 +119,8 @@ the volume's centre, on the rig's side.
    and the rig's IL2CPP build - the installer picks by what it finds, and refuses a folder that already has the
    other BepInEx. An IL2CPP game's first start after installing takes a minute or two longer, online: BepInEx 6
    builds the game's interop assemblies once, downloading Unity's base libraries to do it. In testing (Gang Beasts).
-   A game that tags no player: `followComponent`, `followWhen` and `followPoint` (above, *The cameras*).
+   A game that tags no player: `followComponent`, `followWhen` and `followPoint`; a game with no player at all, watched
+   from a free camera: `followView` (above, *The cameras*).
 4. If UE4SS fails to start with *"PS scan timed out"*, add `engineMajor` / `engineMinor` (Wukong needs 5 / 0).
 5. An engine fork UE4SS does not fit (Mortal Kombat 1: the game crashes in UE4SS, or engine calls do nothing): give the
    game a newer UE4SS (`"ue4ss"`, a zip in `redist/`), only the hooks the rig needs (`"ue4ssHooks": ["EngineTick"]`),
@@ -370,6 +386,15 @@ linear (`DepthLinear`: the value times the far plane). The world is Z up, its ca
 REDengine's frame, so the faces are placed by the same helpers. The feet are the player's entity's place, found by its
 name through the game's own entity system. Five faces cost the game about 1 ms a frame at 30 volumes a second
 (`docs/RESULTS.md` 20).
+
+**F1 2020: the game's own reflection cubemap, from the add-on's cameras.** No rig module (`addon/ego_views.hpp`). With
+Vehicle Reflections at Ultra High the engine draws a cubemap round the car every frame, six full views. Each view's
+camera is a record in a view object, filled from the game's camera commands as the renderer replays them; the add-on
+hooks the command handler (to learn which views are the cube's faces, and where the car is) and the replay (to write the
+rig's cameras into five of the six once every command is in, before anything reads them). The cube's colour and its
+shared depth are known by the names the game gives its D3D12 resources; each face's depth is copied in the game's own
+command list as the face's lighting pass binds its slice, its colour at present, and the D3D12 decoder reads them in
+Frames mode. The game's world is Frostbite's frame, so the faces are placed by the same helpers (`docs/RESULTS.md` 24).
 
 **Snapshot** (`snapshot=<n>` in the game's settings): change the number and the rig writes every camera's picture, lit
 and surface, as `.hdr` files to a `snapshots` folder beside the app. For seeing what the cameras see.

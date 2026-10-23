@@ -28,6 +28,7 @@ namespace VoxonCaptureRig.Unity
         private const float MarkR = -1234f, MarkA = -4321f, CodeBase = 1000f;
         private const float PlayerCodeBase = 1500f;    // PLAYER LOOK: a face's player camera (rig.lua's PLAYER_CODE_BASE)
         private const float SolidCodeBase = 1250f;     // SEE-THROUGH SURFACES: its solid camera (rig.lua's SOLID_CODE_BASE)
+        private const float DepthCodeBase = 1100f;     // HDRP: its depth target (the add-on's kDepthCodeBase)
         private const float HandshakeSeconds = 2f;     // captures held off while the add-on reads the codes
 
         private sealed class Face
@@ -42,6 +43,8 @@ namespace VoxonCaptureRig.Unity
             // target of its own, whose depth buffer the add-on reads: where it is nearer than the face's, it is taken.
             public Camera SolidLens;
             public RenderTexture SolidTarget;
+            // HDRP: the face's depth, copied out by HDRP into a target of its own (Hdrp); the camera's own output, unread.
+            public RenderTexture Depth, Output;
         }
 
         private readonly Face[] _faces = new Face[6];
@@ -67,6 +70,7 @@ namespace VoxonCaptureRig.Unity
         private SeeThrough _see;
         private bool _solidDrawn;                       // the solid cameras' last render drew something
         private Urp _urp;                               // URP games: the cameras drawn straight into their targets
+        private Hdrp _hdrp;                             // HDRP games: their colour and depth copied out by HDRP
 
 #if IL2CPP
         // IL2CPP: the game makes the component (AddComponent) and hands its pointer here.
@@ -79,6 +83,7 @@ namespace VoxonCaptureRig.Unity
             _see = new SeeThrough(Log);
             _follow = new Follow(Log);
             _urp = new Urp(Log);
+            _hdrp = new Hdrp(Log);
         }
 
         private void Update()
@@ -122,6 +127,8 @@ namespace VoxonCaptureRig.Unity
             // the finished volume back by the yaw alone, so the view lands on display -Y (capture_gpu.hpp,
             // DisplayTurnDeg), and the display is the world turned by the view and a quarter turn. Off, the display
             // keeps the world's axes. rig.lua does the same.
+            // FOLLOW VIEW: the rig as much larger as the game's camera is further than followView from what it looks at.
+            if (_cfg.FollowView > 0) _geo = Geometry.Derive(_cfg, Math.Max(_follow.ViewDistance, 0.1f) / _cfg.FollowView);
             double rigYaw = _cfg.YawDeg, dispTurn = _cfg.YawDeg;
             if (_cfg.TurnWithPlayer)
             {
@@ -162,6 +169,7 @@ namespace VoxonCaptureRig.Unity
                 }
             }
             finally { _urp.End(); }
+            Snapshot();
             _shots++;
             if (now >= _nextReport)
             {
@@ -171,6 +179,48 @@ namespace VoxonCaptureRig.Unity
                 _nextReport = now + 5f;
             }
         }
+
+        /// <summary>SNAPSHOT, as the Unreal rig's: when the settings' snapshot number changes (not at the first reading), each
+        /// face's picture as it was just captured is written to a snapshots folder beside the app (beside the game without
+        /// one), face&lt;v&gt;_&lt;n&gt;.png, display-encoded - for seeing what the cameras see. Its depth is not written.</summary>
+        private void Snapshot()
+        {
+            if (_snapshot == null) _snapshot = _cfg.Snapshot;
+            if (_cfg.Snapshot == _snapshot) return;
+            _snapshot = _cfg.Snapshot;
+            string dir = Path.Combine(_cfg.ControlFile.Length > 0 ? Path.GetDirectoryName(_cfg.ControlFile) : Paths.GameRootPath, "snapshots");
+            Directory.CreateDirectory(dir);
+            RenderTexture was = RenderTexture.active;
+            for (int v = 0; v < 6; v++)
+            {
+                Face f = _faces[v];
+                if (f == null) continue;
+                string file = Path.Combine(dir, $"face{v}_{_cfg.Snapshot}.png");
+                var pic = new Texture2D(f.Colour.width, f.Colour.height, TextureFormat.RGBAHalf, false, true);
+                try
+                {
+                    RenderTexture.active = f.Colour;
+                    pic.ReadPixels(new Rect(0, 0, f.Colour.width, f.Colour.height), 0, 0);
+                    var px = pic.GetPixels();
+                    for (int i = 0; i < px.Length; i++)
+                    {
+                        Color c = px[i];   // linear HDR, before any tone mapping: clamped and encoded for the eye
+                        px[i] = new Color(Mathf.Pow(Mathf.Clamp01(c.r), 1 / 2.2f), Mathf.Pow(Mathf.Clamp01(c.g), 1 / 2.2f),
+                                          Mathf.Pow(Mathf.Clamp01(c.b), 1 / 2.2f), 1f);
+                    }
+                    var png = new Texture2D(pic.width, pic.height, TextureFormat.RGBA32, false);
+                    png.SetPixels(px);
+                    File.WriteAllBytes(file, ImageConversion.EncodeToPNG(png).ToArray());
+                    Destroy(png);
+                    Log.LogInfo($"snapshot: face {v} -> {file}");
+                }
+                catch (Exception e) { Log.LogWarning($"snapshot: face {v} FAILED: {e.Message}"); }
+                finally { Destroy(pic); }
+            }
+            RenderTexture.active = was;
+        }
+
+        private int? _snapshot;
 
         private void ReadSettings()
         {
@@ -341,6 +391,17 @@ namespace VoxonCaptureRig.Unity
                 RenderTexture colour = Target($"VoxonRig face {v}", w, h);
                 WriteCode(colour, CodeBase + v);
                 var face = new Face { Colour = colour, Lens = MakeLens($"VoxonRig camera {v}", colour) };
+                if (_hdrp.On)
+                {
+                    // HDRP: it copies the lit colour into the face's target and the depth into one of its own, coded
+                    // for the add-on; the camera's own output, post-processed, goes where nobody reads it.
+                    face.Depth = Target($"VoxonRig face {v} depth", w, h);
+                    WriteCode(face.Depth, DepthCodeBase + v);
+                    face.Output = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32) { name = $"VoxonRig face {v} output" };
+                    face.Output.Create();
+                    face.Lens.targetTexture = face.Output;
+                    _hdrp.Setup(face.Lens, colour, face.Depth);
+                }
                 if (_cfg.PlayerLook)
                 {
                     // PLAYER LOOK: the same size and kind of target, its own code; forward rendering, since only its
@@ -359,7 +420,7 @@ namespace VoxonCaptureRig.Unity
                     face.SolidLens.renderingPath = RenderingPath.Forward;
                 }
                 _faces[v] = face;
-                Log.LogInfo($"face {v}: {w}x{h} target, code {CodeBase + v}" +
+                Log.LogInfo($"face {v}: {w}x{h} target, code {CodeBase + v}" + (face.Depth != null ? $", depth code {DepthCodeBase + v}" : "") +
                             (face.PlayerLens != null ? $", player code {PlayerCodeBase + v}" : "") +
                             (face.SolidLens != null ? $", solid code {SolidCodeBase + v}" : ""));
             }
@@ -435,8 +496,11 @@ namespace VoxonCaptureRig.Unity
                 if (f.PlayerTarget != null) { f.PlayerTarget.Release(); Destroy(f.PlayerTarget); }
                 if (f.SolidLens != null) { f.SolidLens.targetTexture = null; Destroy(f.SolidLens.gameObject); }
                 if (f.SolidTarget != null) { f.SolidTarget.Release(); Destroy(f.SolidTarget); }
+                if (f.Depth != null) { f.Depth.Release(); Destroy(f.Depth); }
+                if (f.Output != null) { f.Output.Release(); Destroy(f.Output); }
                 _faces[v] = null;
             }
+            _hdrp?.Release();
             _builtKey = null;
         }
 

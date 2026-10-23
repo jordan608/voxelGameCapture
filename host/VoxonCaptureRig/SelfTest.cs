@@ -39,6 +39,8 @@ internal static class SelfTest
             AddonOnlyGame(Path.Combine(root, "sims4"), Sims4, "14. The Sims 4");
             AddonOnlyGame(Path.Combine(root, "crysis"), Crysis, "15. Crysis");
             Il2CppUnityGame(Path.Combine(root, "unity-il2cpp"), Path.Combine(root, "unity-il2cpp-bepinex5"));
+            BlueprintGame(Path.Combine(root, "mcdungeons2"));
+            Bridge();
             Feed();
             GameSettings();
             Launching(Path.Combine(root, "launch"));
@@ -636,6 +638,94 @@ internal static class SelfTest
         Diff(before, after);
     }
 
+    // ── A Blueprint Loader game: the add-on and ReShade beside the exe, the rig's mod in ~mods, its settings file ──
+
+    private static readonly GameDef Blueprint = new() { Id = "mcdungeons2", Name = "Test game (Blueprint)", Profile = "mcdungeons2",
+                                                        Engine = "blueprint", Exe = "Dungeons-WinGDK-Shipping.exe",
+                                                        ExeDir = "Dungeons/Binaries/WinGDK" };
+
+    private static void BlueprintGame(string root)
+    {
+        Say("\n20. A Blueprint Loader game (Minecraft Dungeons II): the add-on, and the rig's own mod in ~mods");
+        string exeDir = Path.Combine(root, "Dungeons", "Binaries", "WinGDK");
+        string mods = Path.Combine(root, "Dungeons", "Content", "Paks", "~mods");
+        Directory.CreateDirectory(exeDir);
+        Directory.CreateDirectory(mods);
+        File.WriteAllText(Path.Combine(exeDir, Blueprint.Exe), "not a game");
+        File.WriteAllText(Path.Combine(root, "Dungeons", "Content", "Paks", "Dungeons-WinGDK.pak"), "the game's own");
+        Check(Games.ExeDirUnder(Blueprint, root) == exeDir, "the game is found by its exe folder");
+
+        var before = Snapshot(root);
+        bool refused = false;
+        try { RigInstaller.Install(Blueprint, exeDir); } catch (InvalidOperationException) { refused = true; }
+        Check(refused, "without Blueprint Loader in ~mods, Install refuses");
+        Check(Same(before, Snapshot(root)), "...before changing anything");
+
+        Directory.CreateDirectory(Path.Combine(mods, "BlueprintLoader"));
+        File.WriteAllText(Path.Combine(mods, "BlueprintLoader", "BlueprintLoader_P.pak"), "the player's Blueprint Loader");
+        before = Snapshot(root);
+        Check(RigInstaller.StateOf(Blueprint, exeDir) == RigInstaller.State.NotInstalled, "not installed, and says so");
+        RigInstaller.Install(Blueprint, exeDir);
+        Check(RigInstaller.StateOf(Blueprint, exeDir) == RigInstaller.State.Installed, "installed, and says so");
+        foreach (string f in new[] { "dxgi.dll", "voxon_capture_ue.addon64", "ReShade.ini", "voxon_capture_ue.ini" })
+            Check(File.Exists(Path.Combine(exeDir, f)), $"{f} is there");
+        Check(!File.Exists(Path.Combine(exeDir, "dwmapi.dll")) && !Directory.Exists(Path.Combine(exeDir, "Mods")), "no UE4SS put in");
+        string payload = Path.Combine(AppPaths.Redist, "blueprint", Blueprint.Id);
+        foreach (string f in Directory.EnumerateFiles(payload))
+            Check(File.Exists(Path.Combine(mods, "VoxonRig", Path.GetFileName(f))), $"~mods\\VoxonRig\\{Path.GetFileName(f)} is there");
+        Check(File.ReadAllText(Path.Combine(mods, "BlueprintLoader", "BlueprintLoader_P.pak")) == "the player's Blueprint Loader",
+              "Blueprint Loader is left as it is");
+        string cap = File.ReadAllText(Path.Combine(exeDir, "voxon_capture_ue.ini"));
+        Check(cap.Contains("engine=blueprint", StringComparison.Ordinal), "the game's settings name the engine (the add-on's Unreal path)");
+        string bridge = Path.Combine(root, "Dungeons", BlueprintBridge.FileName);
+        Check(File.Exists(bridge), "the mod's settings file is in the project folder");
+        var got = BlueprintBridge.Decode(BlueprintBridge.ReadPng16(File.ReadAllBytes(bridge)));
+        var want = BlueprintBridge.Values(RigSettings.For(Blueprint), 4f, 2f);
+        Check(Math.Abs(got[0] - BlueprintBridge.Magic) < 1 && Math.Abs(got[1] - BlueprintBridge.LayoutVersion) < 1,
+              "...and reads back with its mark and layout version");
+        Check(got.Zip(want).Max(p => Math.Abs(p.First - p.Second)) < 4, "...and the profile's rig, to within a step");
+
+        var once = Snapshot(root);
+        once.Remove(Path.Combine("Dungeons", "Binaries", "WinGDK", RigInstaller.RecordName));
+        RigInstaller.Install(Blueprint, exeDir);
+        var twice = Snapshot(root);
+        twice.Remove(Path.Combine("Dungeons", "Binaries", "WinGDK", RigInstaller.RecordName));
+        Check(Same(once, twice), "installing again changes nothing");
+        Diff(once, twice);
+
+        foreach (string log in new[] { "ReShade.log", "voxon_capture_ue.log" }) File.WriteAllText(Path.Combine(exeDir, log), "a run");
+        BlueprintBridge.Update(Blueprint, new RigSettings { RadiusM = 20 }, 4f, 2f, exeDir);   // as the app does when settings change
+        Check(Math.Abs(BlueprintBridge.Decode(BlueprintBridge.ReadPng16(File.ReadAllBytes(bridge)))[12 + 1]
+                       - BlueprintBridge.Values(new RigSettings { RadiusM = 20 }, 4f, 2f)[12 + 1]) < 2,
+              "a settings change rewrites the mod's settings file");
+        RigInstaller.Remove(Blueprint, exeDir);
+        BlueprintBridge.Update(Blueprint, new RigSettings { RadiusM = 30 }, 4f, 2f, exeDir);   // a change after Remove
+        var after = Snapshot(root);
+        Check(Same(before, after), "Remove leaves the game exactly as it was, Blueprint Loader kept, after a run and a settings change too");
+        Diff(before, after);
+        Check(!Directory.Exists(Path.Combine(mods, "VoxonRig")), "...the mod's folder gone");
+    }
+
+    private static void Bridge()
+    {
+        Say("\n21. The Blueprint mod's settings file: 16-bit values, read back as the mod reads them");
+        var layout = BlueprintBridge.Layout().ToArray();
+        var values = BlueprintBridge.Values(new RigSettings { RadiusM = 37.5f, TiltDeg = 45, FeetX = 1.5f, FeetY = -2, FeetZ = 1,
+                                                              TurnWithPlayer = true, YawDeg = 30, PlayerLook = true, Lighting = 0.5f,
+                                                              Faces = [true, true, true, true, true, true] }, 4f, 2f);
+        Check(values.Length == layout.Length && layout.Length <= BlueprintBridge.Width * 4, $"{layout.Length} values fit the image");
+        var back = BlueprintBridge.Decode(BlueprintBridge.ReadPng16(BlueprintBridge.Png16(BlueprintBridge.Width, 1, BlueprintBridge.Encode(values))));
+        bool close = true;
+        for (int i = 0; i < values.Length; i++)
+        {
+            double step = (layout[i].Hi - layout[i].Lo) / 65535.0;
+            if (Math.Abs(back[i] - values[i]) > step) { close = false; Say($"     {layout[i].Name}: {values[i]} read back as {back[i]}"); }
+        }
+        Check(close, "every value comes back to within one 16-bit step of its range");
+        Check(values.Skip(12).Chunk(10).All(f => f[0] == 1), "all six faces on");
+        Check(Math.Abs(values[12 + 4] - (-45)) < 1e-3, "the +X side looks down at the tilt");
+    }
+
     private static void Red4Refusals(string root)
     {
         Say("\n12. A REDengine 4 game whose loader slots are taken");
@@ -687,6 +777,11 @@ internal static class SelfTest
             "<Applications><Application Id=\"Game\" Executable=\"GameLaunchHelper.exe\" /></Applications></Package>");
         var (target, how) = GameLauncher.Target(UnityGame, xbox);
         Check(target == @"shell:AppsFolder\Test.Game_s9zt93y1rpe5a!Game", $"an Xbox app copy starts as its package ({target}, through {how})");
+        // An Unreal game's exe three folders below the manifest (Gears Tactics: Content\GearGame\Binaries\WinStore).
+        string deep = Path.Combine(xbox, "GearGame", "Binaries", "WinStore");
+        Directory.CreateDirectory(deep);
+        Check(GameLauncher.XboxAppLink(deep) == @"shell:AppsFolder\Test.Game_s9zt93y1rpe5a!Game",
+              "...and so does one whose exe is three folders below its manifest, as an Unreal game's is");
 
         // Any other copy: its exe. One games.json gives a launcher of its own: that, when the player has it.
         string plain = Path.Combine(root, "plain");
