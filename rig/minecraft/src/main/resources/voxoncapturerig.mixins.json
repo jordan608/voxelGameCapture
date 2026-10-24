@@ -1,0 +1,10 @@
+{
+	"required": true,
+	"package": "com.voxon.capturerig.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": ["CameraMixin", "GameRendererMixin", "GlCommandEncoderMixin", "LevelExtractorMixin", "LevelRendererMixin",
+		"MinecraftMixin", "SectionOcclusionGraphMixin", "ViewAreaAccessor"],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

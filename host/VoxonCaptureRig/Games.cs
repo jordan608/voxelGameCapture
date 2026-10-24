@@ -14,9 +14,10 @@ internal sealed class GameDef
     /// "redengine4" (rig/redengine4, a Cyber Engine Tweaks mod), "frostbite" (no rig module: the add-on adds the faces
     /// as views of the engine's own), "sims4" (no rig module: the add-on has the game's renderer draw the faces from
     /// cameras of its own), "cryengine2" (no rig module: the add-on has the game's 3D engine draw the faces from
-    /// cameras of its own), "ego" (Codemasters' EGO engine; no rig module, the add-on works in the game's renderer) or
-    /// "blueprint" (an Unreal game whose cameras come in as a Blueprint Loader mod of ours, tools/mcdungeons2-mod):
-    /// which rig module, and installer, it takes.</summary>
+    /// cameras of its own), "ego" (Codemasters' EGO engine; no rig module, the add-on works in the game's renderer),
+    /// "blueprint" (an Unreal game whose cameras come in as a Blueprint Loader mod of ours, tools/mcdungeons2-mod) or
+    /// "minecraft" (Minecraft: Java Edition; rig/minecraft, a Fabric mod, and its decode host - no ReShade): which rig
+    /// module, and installer, it takes.</summary>
     [JsonPropertyName("engine")] public string Engine { get; set; } = "unreal";
     [JsonPropertyName("steamAppId")] public int? SteamAppId { get; set; }
     [JsonPropertyName("epicAppName")] public string? EpicAppName { get; set; }
@@ -27,6 +28,10 @@ internal sealed class GameDef
     /// <summary>The game's folder name in an Xbox app library (XboxGames\<this>\Content), for a PC Game Pass or Microsoft
     /// Store copy installed by the Xbox app.</summary>
     [JsonPropertyName("xboxFolder")] public string? XboxFolder { get; set; }
+    /// <summary>A folder the game always lives in, environment variables expanded (Minecraft: %APPDATA%\.minecraft).</summary>
+    [JsonPropertyName("folder")] public string? Folder { get; set; }
+    /// <summary>MINECRAFT: the game version the rig's mod is built for; Fabric Loader must be installed for it.</summary>
+    [JsonPropertyName("gameVersion")] public string? GameVersion { get; set; }
     [JsonPropertyName("exeDir")] public string ExeDir { get; set; } = "";
     [JsonPropertyName("exe")] public string Exe { get; set; } = "";             // when it is not *-Win64-Shipping.exe
     /// <summary>BLUEPRINT games: the game's ~mods folder, relative to the exe's (default ..\..\Content\Paks\~mods).</summary>
@@ -56,7 +61,7 @@ internal static class Games
 
     /// <summary>The folder holding the game's exe - where the loader and ReShade go - or null. A folder the user
     /// picked wins; then Steam, then the Epic launcher, then the registry value games.json names, then the Xbox app's
-    /// libraries.</summary>
+    /// libraries, then the folder games.json names.</summary>
     public static string? FindExeDir(GameDef g, string? chosenFolder)
     {
         if (chosenFolder != null && ExeDirUnder(g, chosenFolder) is string picked) return picked;
@@ -78,7 +83,7 @@ internal static class Games
             if (GameExe(g, d) != null) return d;
         }
         if (GameExe(g, root) != null) return root;
-        if (g.Engine == "unity") return null;
+        if (g.Engine is "unity" or "minecraft") return null;
         try
         {
             foreach (string sub in Directory.EnumerateDirectories(root))
@@ -93,9 +98,15 @@ internal static class Games
     }
 
     /// <summary>The game's exe in a folder, or null: an Unreal game's (games.json's "exe", else its
-    /// *-Win64-Shipping.exe), or a Unity exe beside its "_Data" folder.</summary>
+    /// *-Win64-Shipping.exe), or a Unity exe beside its "_Data" folder. Minecraft has no exe of its own (Java runs it):
+    /// its folder is known by the launcher's launcher_profiles.json.</summary>
     public static string? GameExe(GameDef g, string dir)
     {
+        if (g.Engine == "minecraft")
+        {
+            string profiles = Path.Combine(dir, "launcher_profiles.json");
+            return File.Exists(profiles) ? profiles : null;
+        }
         if (g.Engine != "unity" && g.Exe.Length > 0)
         {
             string exe = Path.Combine(dir, g.Exe);
@@ -135,6 +146,7 @@ internal static class Games
         if (g.XboxFolder is string xbox)
             foreach (string lib in XboxLibraries())
                 yield return Path.Combine(lib, xbox, "Content");
+        if (g.Folder is string folder) yield return Environment.ExpandEnvironmentVariables(folder);
     }
 
     /// <summary>Every Xbox app library: each drive's .GamingRoot names its folders ("RGBX", a count, then UTF-16

@@ -41,6 +41,7 @@ internal static class SelfTest
             Il2CppUnityGame(Path.Combine(root, "unity-il2cpp"), Path.Combine(root, "unity-il2cpp-bepinex5"));
             BlueprintGame(Path.Combine(root, "mcdungeons2"));
             Bridge();
+            MinecraftGame(Path.Combine(root, "minecraft"));
             Feed();
             GameSettings();
             Launching(Path.Combine(root, "launch"));
@@ -707,6 +708,96 @@ internal static class SelfTest
         Check(!Directory.Exists(Path.Combine(mods, "VoxonRig")), "...the mod's folder gone");
     }
 
+    // ── Minecraft: Java Edition: the rig's Fabric mod in mods\, its decode host and settings in .minecraft ─────────────
+
+    private static readonly GameDef Minecraft = new() { Id = "minecraft", Name = "Test game (Minecraft)", Profile = "minecraft",
+                                                        Engine = "minecraft", GameVersion = "26.3" };
+
+    /// <summary>A .minecraft folder as the launcher leaves it after a game has been played: its profiles, the game's
+    /// version, a world, the last log.</summary>
+    private static void MinecraftFolder(string dir)
+    {
+        foreach (string sub in new[] { Path.Combine("versions", "26.3"), Path.Combine("saves", "World"), "logs" })
+            Directory.CreateDirectory(Path.Combine(dir, sub));
+        File.WriteAllText(Path.Combine(dir, "launcher_profiles.json"), "{ \"profiles\": {} }");
+        File.WriteAllText(Path.Combine(dir, "options.txt"), "fov:0.0");
+        File.WriteAllText(Path.Combine(dir, "versions", "26.3", "26.3.json"), "{}");
+        File.WriteAllText(Path.Combine(dir, "saves", "World", "level.dat"), "the player's world");
+        File.WriteAllText(Path.Combine(dir, "logs", "latest.log"), "the last game's log");
+    }
+
+    private static void MinecraftGame(string root)
+    {
+        Say("\n22. Minecraft: Java Edition: the rig's Fabric mod in mods, its decode host and settings beside it, no ReShade");
+        string dir = Path.Combine(root, "plain", ".minecraft");
+        MinecraftFolder(dir);
+        Check(Games.ExeDirUnder(Minecraft, dir) == dir, "the game is found by its folder");
+
+        var before = Snapshot(dir);
+        bool refused = false;
+        try { RigInstaller.Install(Minecraft, dir); } catch (InvalidOperationException) { refused = true; }
+        Check(refused, "without Fabric Loader for 26.3, Install refuses");
+        Check(Same(before, Snapshot(dir)), "...before changing anything");
+
+        string fabric = Path.Combine(dir, "versions", "fabric-loader-0.19.5-26.3");
+        Directory.CreateDirectory(fabric);
+        File.WriteAllText(Path.Combine(fabric, "fabric-loader-0.19.5-26.3.json"), "{ \"inheritsFrom\": \"26.3\" }");
+        before = Snapshot(dir);
+        Check(RigInstaller.StateOf(Minecraft, dir) == RigInstaller.State.NotInstalled, "not installed, and says so");
+        using (new FileStream(Path.Combine(dir, "logs", "latest.log"), FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite))
+        {
+            refused = false;
+            try { RigInstaller.Install(Minecraft, dir); } catch (InvalidOperationException) { refused = true; }
+            Check(RigInstaller.IsRunning(Minecraft, dir) && refused, "the game running (its log held open, as Java holds it): Install refuses");
+        }
+        Check(!RigInstaller.IsRunning(Minecraft, dir), "...and the game closed, it is not running");
+        Check(Same(before, Snapshot(dir)), "...before changing anything");
+
+        RigInstaller.Install(Minecraft, dir);
+        Check(RigInstaller.StateOf(Minecraft, dir) == RigInstaller.State.Installed, "installed, and says so");
+        Check(File.Exists(Path.Combine(dir, "mods", "VoxonCaptureRig.Minecraft.jar")), "the rig's mod is in mods");
+        foreach (string f in new[] { "voxon_capture_mc.exe", "voxon_capture_ue.ini" })
+            Check(File.Exists(Path.Combine(dir, f)), $"{f} is there");
+        Check(!File.Exists(Path.Combine(dir, "dxgi.dll")) && !File.Exists(Path.Combine(dir, "voxon_capture_ue.addon64"))
+              && !File.Exists(Path.Combine(dir, "ReShade.ini")), "no ReShade and no add-on: the game does not draw with Direct3D");
+        string cap = File.ReadAllText(Path.Combine(dir, "voxon_capture_ue.ini"));
+        Check(cap.Contains("engine=minecraft", StringComparison.Ordinal) && cap.Contains("hostGame=minecraft", StringComparison.Ordinal),
+              "the settings name the engine and the game (the mod and the host both read them)");
+
+        var once = Snapshot(dir);
+        once.Remove(RigInstaller.RecordName);
+        RigInstaller.Install(Minecraft, dir);
+        var twice = Snapshot(dir);
+        twice.Remove(RigInstaller.RecordName);
+        Check(Same(once, twice), "installing again changes nothing");
+        Diff(once, twice);
+
+        File.WriteAllText(Path.Combine(dir, "voxon_capture_ue.log"), "a run");     // the decode host's log
+        RigInstaller.Remove(Minecraft, dir);
+        var after = Snapshot(dir);
+        Check(Same(before, after), "Remove leaves the folder exactly as it was, Fabric Loader kept, after a run too");
+        Diff(before, after);
+        Check(!Directory.Exists(Path.Combine(dir, "mods")), "...the mods folder it made gone");
+
+        // A player's own mods: theirs stay, and so does their mods folder. A copy of the rig's mod put in by hand: refused.
+        string modded = Path.Combine(root, "modded", ".minecraft");
+        MinecraftFolder(modded);
+        Directory.CreateDirectory(Path.Combine(modded, "versions", "fabric-loader-0.19.5-26.3"));
+        Directory.CreateDirectory(Path.Combine(modded, "mods"));
+        File.WriteAllText(Path.Combine(modded, "mods", "sodium.jar"), "the player's own mod");
+        before = Snapshot(modded);
+        RigInstaller.Install(Minecraft, modded);
+        RigInstaller.Remove(Minecraft, modded);
+        after = Snapshot(modded);
+        Check(Same(before, after) && Directory.Exists(Path.Combine(modded, "mods")), "a player's own mods and mods folder are kept");
+        Diff(before, after);
+        File.WriteAllText(Path.Combine(modded, "mods", "VoxonCaptureRig.Minecraft-1.0.0.jar"), "a copy put in by hand");
+        before = Snapshot(modded);
+        refused = false;
+        try { RigInstaller.Install(Minecraft, modded); } catch (InvalidOperationException) { refused = true; }
+        Check(refused && Same(before, Snapshot(modded)), "a copy of the rig's mod put in by hand: Install refuses (Fabric would load both), before changing anything");
+    }
+
     private static void Bridge()
     {
         Say("\n21. The Blueprint mod's settings file: 16-bit values, read back as the mod reads them");
@@ -798,6 +889,9 @@ internal static class SelfTest
         withLauncher.Launch = "steam://rungameid/1";
         (target, _) = GameLauncher.Target(withLauncher, plain);
         Check(target == "steam://rungameid/1", "games.json's link: that");
+        withLauncher.Launch = @"shell:AppsFolder\Test.Launcher_s9zt93y1rpe5a!App";      // Minecraft: its launcher's package
+        (target, _) = GameLauncher.Target(withLauncher, plain);
+        Check(target == withLauncher.Launch, "games.json's package link: that");
     }
 
     private static void Check(bool ok, string what)

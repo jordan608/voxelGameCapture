@@ -31,7 +31,7 @@
          whole product and a player needs nothing else. Taken from the repository at build time; the add-on
          is the copy in redist/ (addon/build.ps1 -Redist refreshes it), so building this needs no C++. -->
     <Content Include="..\..\games.json" Link="games.json" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="..\..\rig\**\*" Exclude="..\..\rig\unity\**" Link="payload\rig\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\rig\**\*" Exclude="..\..\rig\unity\**;..\..\rig\minecraft\**" Link="payload\rig\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\redist\**\*" Link="payload\redist\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

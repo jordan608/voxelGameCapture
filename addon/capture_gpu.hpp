@@ -74,7 +74,8 @@ namespace vxcap
         char  hostGame[32] = "ascent"; // ...when the file says game= this
         int   engine = 0;              // 0 Unreal (rig/unreal), 1 Unity (rig/unity), 2 REDengine 3 (rig/redengine3),
                                        // 3 REDengine 4 (rig/redengine4), 4 Frostbite (no rig module: frostbite_views.hpp),
-                                       // 5 The Sims 4 (no rig module: sims4_views.hpp)
+                                       // 5 The Sims 4 (no rig module: sims4_views.hpp), ... 8 Minecraft (rig/minecraft:
+                                       // the faces decoded by minecraft_host.exe, out of the game)
         float chaseAhead = 2.0f;       // FROSTBITE: the player stands this far ahead of the game's camera, level (m)...
         float chaseLeft = 0.0f;        // ...this far to its left (an over-the-shoulder camera)...
         float chaseDown = 1.5f;        // ...and this far below it
@@ -85,7 +86,7 @@ namespace vxcap
     };
 
     constexpr int kEngineUnreal = 0, kEngineUnity = 1, kEngineRed3 = 2, kEngineRed4 = 3, kEngineFrostbite = 4, kEngineSims4 = 5,
-                  kEngineCryEngine2 = 6, kEngineEgo = 7;
+                  kEngineCryEngine2 = 6, kEngineEgo = 7, kEngineMinecraft = 8;
 
     // key=value lines, ';' comments, surrounding blanks trimmed.
     template <class Apply>
@@ -200,7 +201,7 @@ namespace vxcap
             else if (k == "engine") c.engine = v == "unity" ? kEngineUnity : v == "redengine3" ? kEngineRed3
                                              : v == "redengine4" ? kEngineRed4 : v == "frostbite" ? kEngineFrostbite
                                              : v == "sims4" ? kEngineSims4 : v == "cryengine2" ? kEngineCryEngine2
-                                             : v == "ego" ? kEngineEgo : kEngineUnreal;
+                                             : v == "ego" ? kEngineEgo : v == "minecraft" ? kEngineMinecraft : kEngineUnreal;
             else if (k == "chaseAhead") c.chaseAhead = (float)atof(v.c_str());
             else if (k == "chaseLeft") c.chaseLeft = (float)atof(v.c_str());
             else if (k == "chaseDown") c.chaseDown = (float)atof(v.c_str());
@@ -628,7 +629,7 @@ namespace vxcap
             // The far side of the volume from this camera, and a margin: sky and anything beyond are empty.
             p.EmptyCutoff = (f.camD + 2.0f * Reach(g, v)) * 1.5f;
         }
-        if (c.engine == kEngineUnity)
+        if (c.engine == kEngineUnity || c.engine == kEngineMinecraft)   // MINECRAFT: its depth handed over reversed, as Unity's
         {
             p.DepthFromBuffer = 1;
             p.BottomUp = 1;
@@ -738,7 +739,8 @@ namespace vxcap
             ctx->ClearUnorderedAccessViewUint(_packUAV, zero);
             ctx->ClearUnorderedAccessViewUint(_counterUAV, zero);
 
-            const bool depthTex = c.engine == kEngineUnity || frames;   // Unity, Frostbite: depth from a buffer of its own (t1)
+            const bool depthTex = c.engine == kEngineUnity || c.engine == kEngineMinecraft || frames;   // Unity, Minecraft,
+                                                                        // Frostbite: depth from a buffer of its own (t1)
             bool surface = UseSurface(c) && surfaceSRV && !frames;      // the surfaces' colours (t2), when every face has them
             for (int v = 0; v < 6; v++) if (surface && c.faceOn[v] && faceSRV[v] && !surfaceSRV[v]) surface = false;
             bool player = UsePlayer(c) && playerSRV && !frames; // PLAYER LOOK: the player's captures (t3), every face's

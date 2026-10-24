@@ -93,16 +93,20 @@ The whole port depends on this. Stop and report if it fails.
 - [ ] Docs: `docs/GAMES.md` (GTA V row and module table), `docs/RESULTS.md` (a section with the measurements),
       `docs/ARCHITECTURE.md`, `README.md`.
 
-## Where things stand (2026-10-21, Machine C)
+## Where things stand (2026-10-24, Machine C)
 
-**Repo state (2026-10-21).** A fresh repository, branch `main`, started with one commit holding everything to date -
-our own work only, no third-party files. No remote yet. The old history (branches `master` and `redengine-rigs`, up
-to `cc9919a`, Battlefront II, never pushed) is kept outside the tree, at `..\VoxonCaptureRig-old-history.git`. From
-the tree as it stands (after the Gang Beasts URP fix), the add-on, both Unity plugins and the app build, and every
-self-test passes (the GPU decode on WARP, D3D11 and D3D12; the app's installer, pipe and Launch game, 19 sections). Every rig installed on this PC holds
-an add-on older than `redist/`'s: Install rig again, with the game closed, brings it up to date.
+**Repo state (2026-10-24).** A fresh repository, branch `main`, started on 2026-10-21 with one commit holding
+everything to date - our own work only, no third-party files - and a commit per game since. No remote yet. The old
+history (branches `master` and `redengine-rigs`, up to `cc9919a`, Battlefront II, never pushed) is kept outside the
+tree, at `..\VoxonCaptureRig-old-history.git`. From the tree as it stands, the add-on, both Unity plugins, the
+Minecraft mod and the app build, and every self-test passes (the GPU decode on WARP, D3D11 and D3D12; the app's
+installer, pipe and Launch game, 22 sections). Every rig installed on this PC holds an add-on older than `redist/`'s:
+Install rig again, with the game closed, brings it up to date.
 
 **Open, in order of how near they are:**
+- Minecraft: Java Edition (`docs/RESULTS.md` 27): why 22-23 volumes a second reach the app against 30 captures;
+  Player look (the player and mobs as a capture of their own) and Lighting; water and glass solid or not (the user's
+  choice); the Vulkan backend (26.4's default); a game update past 26.3 (the mixins name the game's own methods).
 - Risk of Rain 2 again (Install rig, a run): the Unity rig's follow code, `Members` and `Urp.cs` changed for Gang Beasts.
   Gang Beasts itself works in a local match; left: player look on the beast, a second local player.
 - Crysis: the flicker (on some capture frames a face's picture is presented in place of the player's view); player
@@ -220,5 +224,13 @@ an add-on older than `redist/`'s: Install rig again, with the game closed, bring
   out of the cube's targets, known by their D3D12 names (`addon/ego_views.hpp`, `docs/RESULTS.md` 24). In a race the
   game leaves the player's own car out of its cubemap: the volume shows the track and the other cars. DirectX 11
   crashes on this PC as a race loads, with or without the rig.
+- Minecraft: Java Edition (26.3, OpenGL, Fabric Loader 0.19.5; 2026-10-24): working. The rig is a Fabric mod
+  (`rig/minecraft`) that has the game draw its own level once more per face into targets of its own, and hands each
+  face's colour and depth through a shared file to `voxon_capture_mc.exe` (`addon/minecraft_host.cpp`, the add-on's
+  decoder out of the game). Six 512 px faces: 30 captures and 22-23 volumes a second, the game at 60 fps; 1024 px works.
+  The faces only agree because mixins keep the game's one-camera state right for each face: the terrain's camera
+  position (a uniform block), the chunk sections drawn, the view bob, the sky renderer (`docs/RESULTS.md` 27).
+  Installer type `minecraft`: Fabric Loader is the player's, the mod into `mods`, no ReShade. Not yet: Player look,
+  Lighting, see-through surfaces, the Vulkan backend.
 - Every game: the rig's scale (World radius) from inside the game - hold Page Up / Page Down (the app's Cameras tab
   picks the keys); the volume follows smoothly (`host/VoxonCaptureRig/ScaleKeys.cs`, `docs/ARCHITECTURE.md`).

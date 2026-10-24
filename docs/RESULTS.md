@@ -1051,3 +1051,52 @@ Xbox app (PC Game Pass) copies on this PC. Each install was looked at before any
   - Remove rig left `ReShade2.ini` behind: ReShade writes a numbered settings file when a second process of the game's
     loads it while the first holds `ReShade.ini`. Remove now deletes ReShade's numbered settings and logs with its own
     (`--selftest`), and Undisputed's folder was then exactly as before, file by file.
+
+## 27. Minecraft: Java Edition (26.3, OpenGL, Fabric): the game's own level drawn once more per face - working, 2026-10-24
+
+The user's ask after Minecraft Dungeons II: the original Minecraft, Java Edition, with the cube rig. 26.3 here runs on
+Java 25 with OpenGL 3.3 (NVIDIA 617.42); its jar is no longer obfuscated, and its renderer has a backend layer
+(`com.mojang.renderpearl`) over OpenGL and Vulkan. ReShade reaches neither, so the decode runs beside the game.
+
+- **The rig** (`rig/minecraft`) is a Fabric mod (Fabric Loader 0.19.5, the player's download). Before the player's
+  frame it draws the game's own level once more per face - update, extract, render, as the game's panorama screenshot
+  does - with the camera's pose, lens and target the face's (mixins), each face ending as a frame does (a submit, the
+  per-frame buffers turned over: without them, "PreparedFrame already in use" and a fence error). Colour and depth are
+  read back through the game's renderer into `%TEMP%\voxon_capture_mc.faces`; `voxon_capture_mc.exe` decodes them with
+  the add-on's decoder and sends the volumes down the pipe. Its placement is the Unity rig's, term for term, the world
+  turned into the rig's frame as (x, y, z) to (x, z, y).
+- **Read-back**: the GL backend sets the copy framebuffer's read buffer to none for a depth read and never back, so the
+  next colour read failed ("No color buffer"); a mixin sets it before each colour read.
+- **What made the faces disagree**, found in turn (the user saw it each time: "the cameras were not aligned", "when I
+  turn it is clear", "voxels that belong on the ocean floor around the player on land", "an offset for the camera
+  positions"):
+  - The game's depth is already reversed (its projection swaps the planes; depth clears to 0). The host had flipped it.
+  - The view bob, the hurt tilt and nausea go into the lens in `renderLevel`: cleared for the faces.
+  - Which chunk sections are drawn is one graph for every camera, rebuilt in the background from whichever camera last
+    moved, and applied to a camera only when it turns 2 degrees: the faces drew sections picked for other cameras. Now a
+    face draws every section its own frustum holds and leaves the graph, the section store's centre and the translucent
+    sort to the player; the player's frame picks its own again after the faces.
+  - **The terrain's camera position** (the biggest): the terrain shaders place chunks by the camera position in a
+    uniform block (`GlobalSettingsUniform`) that the game writes once a frame, for the player's camera, before it draws
+    the level. The faces call `renderLevel` directly, so their terrain was drawn from the player's eye while entities
+    stood where the face's camera is. Each face now writes its own. The game's panorama never meets this: it only turns.
+    An earlier check had said the faces agreed: the points the faces shared were the player model.
+- **Measured** (one capture read straight from the shared file, each face's points rebuilt and compared): every face
+  pair shares thousands of points, their mean offset under 1 cm and the median gap 1-11 cm (the faces' own spacing).
+  Minecraft's blocks put the flat surfaces on whole metres: they land there.
+- **Rates**: five 512 px faces at radius 8 m, 30 captures a second at 16-17 ms each, the game at 56-60 fps. Six 512 px
+  faces at 5 m: 30 captures, 22-23 volumes a second, about 317,000 voxels. Six 1024 px faces: 30 captures at 17-20 ms,
+  the game at 60 fps, about 618,000 voxels, 22 volumes a second. Why the volumes stay at 22-23 a second against 30
+  captures is not yet known.
+- **The game stopped when the face size changed** (the user, 512 to 1024 px): the game makes its sky renderer the first
+  time it draws a sky, bound to the target drawn into then - a face's, the faces drawing first - and every sky,
+  the player's too, went into that face's picture. Replacing the faces' targets left it drawing into a texture that
+  was gone. The faces now draw no sky (it has no depth, and makes no voxels); 512, 1024, 768, 1024 px in turn while
+  running, without a fault.
+- **The installer** (type `minecraft`): `.minecraft` is found by itself; Install refuses without Fabric Loader for 26.3,
+  or with a copy of the mod put in by hand; the mod goes into `mods`, the host and the settings beside it; no ReShade.
+  Java runs the game, so "is it running" is the game's log held open. Launch game opens the Minecraft Launcher. F7
+  stops and starts the faces. `--selftest` section 22.
+- **Not yet**: Player look, Lighting and see-through surfaces (the app's settings for them do nothing here; the water
+  comes out as a surface with the classic transparency, Improved Transparency untried), orthographic lenses (not
+  drawn: always perspective), the Vulkan backend (26.4's default; its read-back rows run the other way).

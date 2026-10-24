@@ -298,6 +298,9 @@ internal static class AppPaths
     public static string CetZip => Directory.EnumerateFiles(Redist, "cet_*.zip").First();
     public static string Red4extZip => Directory.EnumerateFiles(Redist, "red4ext-*.zip").First();
     public static string CodewareZip => Directory.EnumerateFiles(Redist, "Codeware-*.zip").First();
+    // MINECRAFT: rig/minecraft, built (a Fabric mod), and the decode host it starts beside the game (addon/minecraft_host.cpp).
+    public static string MinecraftMod => Path.Combine(Redist, "VoxonCaptureRig.Minecraft.jar");
+    public static string MinecraftHost => Path.Combine(Redist, "voxon_capture_mc.exe");
     public static string Settings => Path.Combine(Root, "settings");
     public static string ControlFile => Path.Combine(Root, "control.txt");
     public static string GamesJson => Path.Combine(Root, "games.json");

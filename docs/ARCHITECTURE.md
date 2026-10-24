@@ -57,6 +57,18 @@ One capture method, three parts, and one wire between them.
    acts on, as a small 16-bit PNG beside the game (`BlueprintBridge.cs`), which the mod reads twice a second. Like
    rig.lua it makes new targets, cleared to their codes, whenever which faces, their size, Lighting or Player look
    change. The add-on needs nothing new: it finds the faces by their codes, as rig.lua's.
+
+   **Minecraft: Java Edition** (`engine=minecraft`, `rig/minecraft`) draws with OpenGL (or Vulkan), which ReShade
+   does not reach, so the cube's two halves both live outside ReShade. The rig is a **Fabric mod** of ours: before the
+   player's frame it has the game draw its own level once more per face (update, extract, render, as the game's
+   panorama screenshot does), from the face's camera into a target of the face's own, then reads each face's colour
+   and depth back through the game's renderer into a file shared with **`voxon_capture_mc.exe`**
+   (`addon/minecraft_host.cpp`): the add-on's own decoder (`capture_gpu.hpp`) on a D3D11 device of its own, which reads
+   the same settings and sends each volume down the app's pipe as the add-on does. The mod starts it, and it ends with
+   the game. The game keeps state for its one camera that the faces must neither use nor disturb, each set right by a
+   mixin (`docs/RESULTS.md` 27): the camera position the terrain's shaders read (a uniform block written once a frame),
+   which chunk sections are drawn (a graph shared by every camera, worked out in the background), the section store
+   centred on the camera, the view bob in the lens, and the sky renderer, bound to the first target it draws into.
 2. **The decode** (`addon/`). A ReShade add-on, loaded as `dxgi.dll` beside the game's exe. It finds the camera
    targets by their face code, then runs two compute passes on the GPU. *Pack* tone-maps the colour, maps its brightness into the Colour range, and encodes depth;
    *compact* turns each pixel into a voxel in display space and keeps **one voxel per display cell**, because the
@@ -100,11 +112,12 @@ the volume's centre, on the rig's side.
 | `rig/unity/` | The cameras for Unity games: a BepInEx 5 plugin (`Rig.cs`, `Geometry.cs`, `RigSettings.cs`, `Follow.cs`, `Urp.cs`). `build.ps1` builds it into `redist/` against Risk of Rain 2's Unity assemblies; `il2cpp/build.ps1` builds the same sources as a BepInEx 6 plugin for IL2CPP games, against Gang Beasts' interop assemblies (BepInEx 6 must have run there once) |
 | `rig/redengine3/` | The Witcher 3: a script mod (`voxonRig.ws`) that says where the volume is (or, on a game build the add-on's renderer hook does not know, sweeps the game's own camera round the cube), and `r4Player.patch.json`, the three lines the installer adds to the player's own copy of the game's player script |
 | `rig/redengine4/` | Cyberpunk 2077: a Cyber Engine Tweaks mod (`voxon_rig/init.lua`) that puts five of the engine's own render-to-texture cameras on V and stands them round her |
+| `rig/minecraft/` | Minecraft: Java Edition: a Fabric mod (`FaceRig.java`, `Geometry.java` - the Unity rig's placement, term for term - `RigSettings.java`, `FaceFile.java`, and the mixins in `mixin/`). `build.ps1` builds it into `redist/` with Gradle and Fabric Loom; its decode host is `addon/minecraft_host.cpp` |
 | `rig/profiles/` | One settings file per game, the starting values for the Cameras tab |
 | `tools/mcdungeons2-mod/` | Minecraft Dungeons II's rig, a Blueprint Loader mod: `make_mod.py`, which makes it in Unreal 5.6.1's editor, and `VoxonGraph`, the editor plugin that makes its graph nodes. Built into `redist/blueprint/mcdungeons2/` (its `README.md`) |
 | `addon/` | The GPU decode: the ReShade add-on, its shaders, its self-test, its build script |
 | `host/VoxonCaptureRig/` | The app |
-| `redist/` | What the installer puts into a game: UE4SS 3.0.1, BepInEx 5.4.23.5 or BepInEx 6.0.0 be.788 (IL2CPP; LGPL-2.1), or Cyber Engine Tweaks 1.37.1, RED4ext 1.30.0 and Codeware 1.20.5 (all MIT); ReShade 6.7.3 (add-on build), the built add-on, the built Unity plugins (Mono and IL2CPP), and the built Blueprint mods (`blueprint/<game>/`). Only the last four are in git; the third-party files are fetched (`DEVELOPER_GUIDE.md`) |
+| `redist/` | What the installer puts into a game: UE4SS 3.0.1, BepInEx 5.4.23.5 or BepInEx 6.0.0 be.788 (IL2CPP; LGPL-2.1), or Cyber Engine Tweaks 1.37.1, RED4ext 1.30.0 and Codeware 1.20.5 (all MIT); ReShade 6.7.3 (add-on build), the built add-on, the built Unity plugins (Mono and IL2CPP), the built Blueprint mods (`blueprint/<game>/`), and the built Minecraft mod and its decode host (`VoxonCaptureRig.Minecraft.jar`, `voxon_capture_mc.exe`). Only the built files of ours are in git; the third-party files are fetched (`DEVELOPER_GUIDE.md`) |
 | `docs/` | This file, and `RESULTS.md`, the measurements |
 | `tools/` | `package.ps1`, which builds the folder a player gets; `mcdungeons2-mod/` (above) |
 

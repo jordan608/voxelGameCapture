@@ -16,14 +16,23 @@ dist/
 
 # the Unity plugins' build input, taken out of redist/'s BepInEx zip by rig\unity\build.ps1
 rig/unity/lib/
+# the Minecraft mod's Gradle build, and Gradle's own wrapper (third-party: docs/DEVELOPER_GUIDE.md)
+rig/minecraft/build/
+rig/minecraft/.gradle/
+rig/minecraft/gradlew
+rig/minecraft/gradlew.bat
+rig/minecraft/gradle/wrapper/gradle-wrapper.jar
 
 # ---- third-party: never in git ----
-# redist/ holds what the installer puts into games. Only the three files built from our own code are tracked:
-# the add-on, and the two Unity plugins, which can only be built against a game's own assemblies.
+# redist/ holds what the installer puts into games. Only the files built from our own code are tracked: the add-on,
+# the two Unity plugins, which can only be built against a game's own assemblies, and the Minecraft rig's two.
 redist/*
 !redist/voxon_capture_ue.addon64
 !redist/VoxonCaptureRig.Unity.dll
 !redist/VoxonCaptureRig.Unity.IL2CPP.dll
+# the Minecraft rig: its Fabric mod (rig/minecraft) and its decode host (addon/minecraft_host.cpp)
+!redist/VoxonCaptureRig.Minecraft.jar
+!redist/voxon_capture_mc.exe
 # and the rig's own Blueprint Loader mods (redist/blueprint/<game id>/), built by tools/mcdungeons2-mod
 !redist/blueprint/
 

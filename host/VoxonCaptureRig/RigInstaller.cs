@@ -38,6 +38,7 @@ internal static class RigInstaller
         public bool Red4extOurs { get; set; }
         public bool CodewareOurs { get; set; }
         public bool ReShadeIniOurs { get; set; }
+        public bool ModsDirOurs { get; set; }                   // MINECRAFT: the installer made mods\, which goes when empty
         public string? CaptureIniBackup { get; set; }           // an existing voxon_capture_ue.ini, put back on Remove
         // Lines changed in the player's own files, kept WHOLE and put back verbatim (UE4SS ships "MajorVersion = " but
         // "MinorVersion =", and a value alone loses the difference). Null with the flag set: there was no such line,
@@ -75,6 +76,21 @@ internal static class RigInstaller
         Path.GetFullPath(Path.Combine(exeDir, g.ModsDir ?? Path.Combine("..", "..", "Content", "Paks", "~mods")));
     private static string BlueprintMod(GameDef g, string exeDir) => Path.Combine(ModsDir(g, exeDir), BlueprintModFolder);
 
+    // MINECRAFT (Java Edition): the game's folder is .minecraft, and Java runs the game, so there is no exe and no
+    // ReShade. The rig is a Fabric mod of ours (rig/minecraft) in its mods folder, with the decode host it starts
+    // (voxon_capture_mc.exe: the add-on's decoder, out of the game) beside it. Fabric Loader is the player's to install
+    // (fabricmc.net), for the game version the mod is built for, and must be there first.
+    private static bool IsMinecraft(GameDef g) => g.Engine == "minecraft";
+    private const string MinecraftHostName = "voxon_capture_mc.exe";
+    private static string MinecraftMods(string exeDir) => Path.Combine(exeDir, "mods");
+    private static IEnumerable<string> MinecraftModCopies(string exeDir) =>
+        Directory.Exists(MinecraftMods(exeDir)) ? Directory.EnumerateFiles(MinecraftMods(exeDir), "VoxonCaptureRig.Minecraft*.jar") : [];
+    private static bool HasFabric(GameDef g, string exeDir)
+    {
+        string versions = Path.Combine(exeDir, "versions");
+        return Directory.Exists(versions) && Directory.EnumerateDirectories(versions, $"fabric-loader-*-{g.GameVersion}").Any();
+    }
+
     private const string Red3Mod = "modVoxonRig";                     // the Witcher 3 script mod's folder under mods\
 
     /// <summary>REDENGINE3: the game's own folder - the exe is in bin\x64_dx12 - where content\ and mods\ are. REDENGINE4
@@ -95,6 +111,7 @@ internal static class RigInstaller
                  : IsRed3(g) ? Directory.Exists(Path.Combine(Red3Root(exeDir), "mods", Red3Mod))
                  : IsRed4(g) ? Directory.Exists(Red4Mod(exeDir))
                  : IsBlueprint(g) ? Directory.Exists(BlueprintMod(g, exeDir))
+                 : IsMinecraft(g) ? MinecraftModCopies(exeDir).Any() || File.Exists(Path.Combine(exeDir, MinecraftHostName))
                  : AddonOnly(g) ? File.Exists(Path.Combine(exeDir, AddonName))
                  : Directory.Exists(Path.Combine(exeDir, "Mods", "VoxonTapUE"));
         if (rig || File.Exists(Path.Combine(exeDir, CaptureIni))) return State.Foreign;
@@ -103,6 +120,14 @@ internal static class RigInstaller
 
     public static bool IsRunning(GameDef g, string exeDir)
     {
+        if (IsMinecraft(g))
+        {
+            // Java runs it, so no process is the game's by name: the game holds its log open while it runs.
+            string log = Path.Combine(exeDir, "logs", "latest.log");
+            if (!File.Exists(log)) return false;
+            try { using var held = new FileStream(log, FileMode.Open, FileAccess.Read, FileShare.None); return false; }
+            catch (IOException) { return true; }
+        }
         string? exe = Games.GameExe(g, exeDir);
         if (exe == null) return false;
         return Process.GetProcessesByName(Path.GetFileNameWithoutExtension(exe)).Length > 0;
@@ -116,7 +141,7 @@ internal static class RigInstaller
         if (IsRunning(g, exeDir)) throw new InvalidOperationException($"{g.Name} is running. Close it first.");
         var rec = LoadRecord(exeDir) ?? new Record { Game = g.Id };
         rec.When = DateTime.Now;
-        RefuseForeign(exeDir, "dxgi.dll", "ReShade", rec.ReShadeOurs);
+        if (!IsMinecraft(g)) RefuseForeign(exeDir, "dxgi.dll", "ReShade", rec.ReShadeOurs);
         if (IsUnity(g)) RefuseForeign(exeDir, "winhttp.dll", "BepInEx", rec.BepInExOurs);
         if (IsUnity(g) && !rec.BepInExOurs && Directory.Exists(Path.Combine(exeDir, "BepInEx", "core")) && !File.Exists(BepInExCore(exeDir)))
             throw new InvalidOperationException(IsIl2Cpp(exeDir)
@@ -127,6 +152,12 @@ internal static class RigInstaller
         if (IsBlueprint(g) && !File.Exists(Path.Combine([ModsDir(g, exeDir), .. BlueprintLoaderPak])))
             throw new InvalidOperationException($"{g.Name} needs Blueprint Loader, which loads the rig's mod: get it from Nexus Mods "
                 + $"({g.Name}, Blueprint Loader), put its BlueprintLoader folder in {ModsDir(g, exeDir)}, then Install rig again.");
+        if (IsMinecraft(g) && !HasFabric(g, exeDir))
+            throw new InvalidOperationException($"{g.Name} needs Fabric Loader for {g.GameVersion}, which loads the rig's mod: get the "
+                + $"Fabric installer from fabricmc.net, choose Minecraft {g.GameVersion} and Install, then Install rig again.");
+        if (IsMinecraft(g) && MinecraftModCopies(exeDir).FirstOrDefault(f => !rec.Files.Contains(Path.GetRelativePath(exeDir, f))) is string other)
+            throw new InvalidOperationException($"mods already has a copy of the rig's mod ({Path.GetFileName(other)}) that this app did not "
+                + "put there: Fabric would load both. Take it out first.");
         foreach (string f in GameFiles(g))
         {
             string name = Path.GetFileName(f);
@@ -139,9 +170,10 @@ internal static class RigInstaller
         else if (IsRed3(g)) InstallRed3Rig(rec, exeDir);
         else if (IsRed4(g)) InstallRed4Rig(rec, exeDir);
         else if (IsBlueprint(g)) InstallBlueprintMod(g, rec, exeDir);
+        else if (IsMinecraft(g)) InstallMinecraftRig(rec, exeDir);
         else if (AddonOnly(g)) Log.Write("install: no loader or script for this game: the add-on adds the faces itself");
         else InstallUnrealRig(g, rec, exeDir);
-        InstallReShade(rec, exeDir);
+        if (!IsMinecraft(g)) InstallReShade(rec, exeDir);
         InstallSettings(g, rec, exeDir);
         if (IsBlueprint(g))
         {
@@ -251,7 +283,7 @@ internal static class RigInstaller
     private static IEnumerable<string> GameFiles(GameDef g)
     {
         string dir = Path.Combine(AppPaths.RigScripts, "games", g.Id);
-        return !IsUnity(g) && !AddonOnly(g) && Directory.Exists(dir) ? Directory.EnumerateFiles(dir) : [];
+        return !IsUnity(g) && !IsMinecraft(g) && !AddonOnly(g) && Directory.Exists(dir) ? Directory.EnumerateFiles(dir) : [];
     }
 
     // ── Blueprint: the rig's own Blueprint Loader mod, into the game's ~mods folder ──────────────────────────────────
@@ -263,6 +295,21 @@ internal static class RigInstaller
         foreach (string f in Directory.EnumerateFiles(Path.Combine(AppPaths.Redist, "blueprint", g.Id)))
             Own(rec, exeDir, CopyInto(f, mod));
         Log.Write($"install: the rig's Blueprint Loader mod in {mod}");
+    }
+
+    // ── Minecraft: the rig's Fabric mod into mods\, its decode host beside it ───────────────────────────────────────
+
+    private static void InstallMinecraftRig(Record rec, string exeDir)
+    {
+        string mods = MinecraftMods(exeDir);
+        if (!Directory.Exists(mods))
+        {
+            Directory.CreateDirectory(mods);
+            rec.ModsDirOurs = true;
+        }
+        Own(rec, exeDir, CopyInto(AppPaths.MinecraftMod, mods));
+        Own(rec, exeDir, CopyInto(AppPaths.MinecraftHost, exeDir));
+        Log.Write($@"install: camera rig mod in mods\{Path.GetFileName(AppPaths.MinecraftMod)}, its decode host ({MinecraftHostName}) beside it");
     }
 
     // ── Unity: BepInEx (5 for Mono, 6 for IL2CPP), and the rig as its plugin ───────────────────────
@@ -509,6 +556,11 @@ internal static class RigInstaller
             else if (IsRed3(g)) { TryDeleteDir(Path.Combine(Red3Root(exeDir), "mods", Red3Mod)); DeleteEmptyDirs(Path.Combine(Red3Root(exeDir), "mods")); }
             else if (IsRed4(g)) { TryDeleteDir(Red4Mod(exeDir)); RemoveRed4Runtime(null, exeDir); }
             else if (IsBlueprint(g)) { TryDeleteDir(BlueprintMod(g, exeDir)); TryDelete(BlueprintBridge.PathFor(exeDir)); }
+            else if (IsMinecraft(g))
+            {
+                foreach (string jar in MinecraftModCopies(exeDir).ToList()) TryDelete(jar);
+                TryDelete(Path.Combine(exeDir, MinecraftHostName));
+            }
             else if (!AddonOnly(g)) { TryDeleteDir(Path.Combine(exeDir, "Mods", "VoxonTapUE")); DropModsLine(exeDir); }
             TryDelete(Path.Combine(exeDir, AddonName));
             TryDelete(Path.Combine(exeDir, AddonLog));
@@ -517,7 +569,7 @@ internal static class RigInstaller
             return;
         }
 
-        if (!IsUnity(g) && !IsRed3(g) && !IsRed4(g) && !AddonOnly(g)) DropModsLine(exeDir);
+        if (!IsUnity(g) && !IsRed3(g) && !IsRed4(g) && !IsMinecraft(g) && !AddonOnly(g)) DropModsLine(exeDir);
         foreach (string rel in rec.Files.OrderByDescending(f => f.Length))
             TryDelete(Path.Combine(exeDir, rel));
         if (IsRed4(g)) RemoveRed4Runtime(rec, exeDir);
@@ -525,6 +577,10 @@ internal static class RigInstaller
         {
             TryDelete(BlueprintBridge.PathFor(exeDir) + ".tmp");
             DeleteEmptyDirs(BlueprintMod(g, exeDir));
+        }
+        else if (IsMinecraft(g))
+        {
+            if (rec.ModsDirOurs) DeleteEmptyDirs(MinecraftMods(exeDir));
         }
         else if (IsRed3(g))
         {

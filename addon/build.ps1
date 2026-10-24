@@ -1,9 +1,10 @@
 <#
-Build the GPU half of the re-hosted VLED capture: the ReShade add-on and its no-game self-test.
+Build the GPU half of the re-hosted VLED capture: the ReShade add-on, its no-game self-test, and Minecraft's decode
+host (voxon_capture_mc.exe: the same decoder, out of the game, for rig/minecraft).
 
     addon/build.ps1            # shaders, add-on, self-test, then run the self-test
     addon/build.ps1 -NoTest
-    addon/build.ps1 -Redist    # and copy the add-on to ..\redist, where the host's installer takes it from
+    addon/build.ps1 -Redist    # and copy the add-on and the Minecraft host to ..\redist, where the installer takes them from
 
 The two compute shaders are compiled with fxc (Windows SDK) into headers under obj\ and embedded,
 because outside Unreal nothing compiles .usf at run time. The add-on writes the wire format through
@@ -37,19 +38,21 @@ $fxc = "fxc /nologo /T cs_5_0 /E MainCS /O3 /WX /Fh obj\pack_cs.h /Vn g_packCS s
 $addon = "cl /nologo /LD /EHsc /O2 /std:c++17 /MT /W3 /DNDEBUG /DNOMINMAX /I`"$sdk`" /I`"$feed`" " +
          "/Fo`"obj\\`" voxon_capture_ue.cpp `"$feed\Feed.cpp`" /link /DLL /OUT:bin\voxon_capture_ue.addon64 d3d11.lib d3d12.lib user32.lib"
 $test  = "cl /nologo /EHsc /O2 /std:c++17 /W4 /WX /DNOMINMAX /Fo`"obj\\`" /Fe:bin\selftest_gpu.exe selftest_gpu.cpp d3d11.lib d3d12.lib dxgi.lib"
+$mc    = "cl /nologo /EHsc /O2 /std:c++17 /MT /W3 /DNDEBUG /DNOMINMAX /I`"$feed`" /Fo`"obj\\`" /Fe:bin\voxon_capture_mc.exe " +
+         "minecraft_host.cpp `"$feed\Feed.cpp`" d3d11.lib user32.lib"
 
 $prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-cmd /c "`"$vcvars`" >nul 2>&1 && $fxc && $addon && $test"
+cmd /c "`"$vcvars`" >nul 2>&1 && $fxc && $addon && $test && $mc"
 $rc = $LASTEXITCODE
 $ErrorActionPreference = $prev
 if ($rc -ne 0) { throw "build failed ($rc)" }
-Write-Host "built bin\voxon_capture_ue.addon64 and bin\selftest_gpu.exe" -ForegroundColor Green
+Write-Host "built bin\voxon_capture_ue.addon64, bin\selftest_gpu.exe and bin\voxon_capture_mc.exe" -ForegroundColor Green
 
 if (-not $NoTest) {
   & .\bin\selftest_gpu.exe
   if ($LASTEXITCODE -ne 0) { throw "GPU self-test FAILED" }
 }
 if ($Redist) {
-  Copy-Item bin\voxon_capture_ue.addon64 ..\redist\ -Force
-  Write-Host "copied to ..\redist\voxon_capture_ue.addon64" -ForegroundColor Green
+  Copy-Item bin\voxon_capture_ue.addon64, bin\voxon_capture_mc.exe ..\redist\ -Force
+  Write-Host "copied to ..\redist\: voxon_capture_ue.addon64, voxon_capture_mc.exe" -ForegroundColor Green
 }

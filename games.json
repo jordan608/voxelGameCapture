@@ -1,5 +1,5 @@
 {
-  "_about": "The games the capture rig supports. One entry per game; adding a game is an entry here plus a profile in rig/profiles. steamAppId / epicAppName / installRegistryKey with installRegistryValue (a registry value holding the install folder, for a game another launcher installs) / xboxFolder (the game's folder in an Xbox app library, XboxGames/<xboxFolder>/Content) let the app find an install by itself; otherwise the user browses to the game's folder. exeDir is the folder holding the *-Win64-Shipping.exe, relative to the install; leave it empty to search for it. exe names the game's exe when it is not *-Win64-Shipping.exe. ue4ss names the UE4SS zip in redist/ the game needs (default UE4SS_v3.0.1.zip), ue4ssHooks the only UE4SS hooks left on for an engine the others do not fit; files the game's UE4SS needs beside it go in rig/unreal/games/<id>/. engineMajor/engineMinor force UE4SS's engine version, only for games whose scan fails without it.",
+  "_about": "The games the capture rig supports. One entry per game; adding a game is an entry here plus a profile in rig/profiles. steamAppId / epicAppName / installRegistryKey with installRegistryValue (a registry value holding the install folder, for a game another launcher installs) / xboxFolder (the game's folder in an Xbox app library, XboxGames/<xboxFolder>/Content) / folder (a folder the game always lives in, %VARIABLES% expanded: Minecraft's .minecraft) let the app find an install by itself; otherwise the user browses to the game's folder. exeDir is the folder holding the *-Win64-Shipping.exe, relative to the install; leave it empty to search for it. exe names the game's exe when it is not *-Win64-Shipping.exe. ue4ss names the UE4SS zip in redist/ the game needs (default UE4SS_v3.0.1.zip), ue4ssHooks the only UE4SS hooks left on for an engine the others do not fit; files the game's UE4SS needs beside it go in rig/unreal/games/<id>/. engineMajor/engineMinor force UE4SS's engine version, only for games whose scan fails without it. launch names what Launch game starts when it is not the store's own way: a link (steam://, shell:AppsFolder\\...) or an exe in the game's folder. gameVersion (Minecraft) is the game version the rig's mod is built for.",
   "games": [
     {
       "id": "ascent", "name": "The Ascent", "profile": "ascent", "engine": "unreal",
@@ -95,6 +95,13 @@
       "xboxFolder": "Undisputed",
       "status": "In progress", "graphics": "DX11",
       "notes": "Unity IL2CPP with Unity's high-definition renderer, through BepInEx 6, which the installer brings. The first start after installing takes a minute or two longer: BepInEx builds the game's interop assemblies once, and downloads Unity's libraries for that, so be online for it. The volume stands between the two boxers and turns with the game's camera. Offline fights only: stay out of online play while the rig is installed. The Xbox app (PC Game Pass) copy is found by itself."
+    },
+    {
+      "id": "minecraft", "name": "Minecraft: Java Edition", "profile": "minecraft", "engine": "minecraft",
+      "folder": "%APPDATA%\\.minecraft", "gameVersion": "26.3",
+      "launch": "shell:AppsFolder\\Microsoft.4297127D64EC6_8wekyb3d8bbwe!Minecraft",
+      "status": "In progress", "graphics": "OpenGL",
+      "notes": "Version 26.3, through Fabric Loader, which you install first: get the Fabric installer from fabricmc.net, choose Minecraft 26.3 and Install, then Install rig here. The rig is a Fabric mod in .minecraft\\mods: the game draws each face once more in every frame, and a small program beside it (voxon_capture_mc.exe, which the mod starts) turns them into volumes. Launch game opens the Minecraft Launcher: choose the fabric-loader 26.3 installation and press Play. The volume stands on your feet and turns with your view. Single-player worlds only: stay off servers and Realms while the rig is installed."
     },
     {
       "id": "wukong", "name": "Black Myth: Wukong", "profile": "wukong",

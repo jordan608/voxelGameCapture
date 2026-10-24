@@ -1,0 +1,18 @@
+{
+	"schemaVersion": 1,
+	"id": "voxoncapturerig",
+	"version": "${version}",
+	"name": "Voxon Capture Rig",
+	"description": "A cube of cameras round the player, for a Voxon volumetric display. Installed and set up by the Voxon Capture Rig app.",
+	"authors": ["Voxon"],
+	"environment": "client",
+	"entrypoints": {
+		"client": ["com.voxon.capturerig.VoxonRig"]
+	},
+	"mixins": ["voxoncapturerig.mixins.json"],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.3",
+		"java": ">=25"
+	}
+}

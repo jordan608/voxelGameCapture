@@ -91,7 +91,8 @@ third-party files, is kept apart from it (and on `github.com/jordan608/CubeRig`)
 profiles, the tools and the docs. The Voxon SDK wrappers copied from GameKit, and the shaders adapted from Voxon's VLED
 plugin, are Voxon's own. Some built files in `redist/` are ours and stay in git:
 `voxon_capture_ue.addon64`, `VoxonCaptureRig.Unity.dll`, `VoxonCaptureRig.Unity.IL2CPP.dll`, and the Minecraft
-Dungeons II mod, `blueprint/mcdungeons2/VoxonRig_P.pak`, `.ucas` and `.utoc`. The Unity plugins can only be built
+Dungeons II mod, `blueprint/mcdungeons2/VoxonRig_P.pak`, `.ucas` and `.utoc`, and the Minecraft mod and its decode
+host, `VoxonCaptureRig.Minecraft.jar` and `voxon_capture_mc.exe`. The Unity plugins can only be built
 against a game's own assemblies, so a PC without Risk of Rain 2 or Gang Beasts could not make them; the mod needs
 Unreal 5.6.1 and the Blueprint Mod Template (`tools/mcdungeons2-mod/README.md`).
 
@@ -110,11 +111,13 @@ somewhere the team shares: the experimental UE4SS build is a moving tag and may 
 | `cet_1.37.1.zip` (Cyber Engine Tweaks) | `redist/` | github.com/maximegmd/CyberEngineTweaks, release v1.37.1 | MIT | `1855017796a27f518199f5b7d7210ef1db7a5c5f0af468c68e04e6e666ad248c` |
 | `red4ext-1.30.0.zip` | `redist/` | github.com/wopss/RED4ext, release v1.30.0 | MIT | `3a72225c9d2c46c99f4a4159d952b9d24366357c2423eb7ea255c84e9e11c0b0` |
 | `Codeware-1.20.5.zip` | `redist/` | github.com/psiberx/cp2077-codeware, release v1.20.5 | MIT | `102989e199bad650fe6e53395c22bac53fdd7abecc6eeec3b0046886631591f0` |
+| Gradle's wrapper for `rig/minecraft` (`gradlew`, `gradlew.bat`, `gradle/wrapper/gradle-wrapper.jar`; only to build the Minecraft mod) | `rig/minecraft/` | run `gradle wrapper --gradle-version 9.7.1` there once (Gradle 9.7.1 from gradle.org); `gradle-wrapper.properties` is in git | Apache-2.0 | - |
 | `BlueprintModTemplate` 2.4 (only to build the Minecraft Dungeons II mod; never in the repository or in a game) | a folder of its own outside the repository | Nexus Mods, Minecraft Dungeons II, Blueprint Loader, Files tab (ewanhowell5195) | the author's | `953592b6d0df1ede3de9391ecbcb1eb4813f208ede68c946b406c97b2864e9bf` |
 
 Never anywhere in the repository: the **Voxon runtime** (`LedHost.dll`, `LedWin.dll`, `FTD3XXWU.dll`, `ledhost.ini`;
 the app finds the installed VLED runtime), **ScriptHookV** and its loader (the player downloads them), **c1-launcher**
-(the Crysis player's own download), **Blueprint Loader** (the Minecraft Dungeons II player's own download), and **any
+(the Crysis player's own download), **Blueprint Loader** (the Minecraft Dungeons II player's own download), **Fabric
+Loader** (the Minecraft player's own: the Fabric installer from fabricmc.net), and **any
 game's files**. Avalonia comes from NuGet at build time.
 
 ## Building
@@ -131,6 +134,9 @@ its shaders); the Voxon VLED runtime (the simulator); and the third-party files 
    **The Minecraft Dungeons II mod**, only when `tools/mcdungeons2-mod/make_mod.py` changes: Unreal 5.6.1, the
    Blueprint Mod Template and the steps in `tools/mcdungeons2-mod/README.md`; its three pak files go into
    `redist/blueprint/mcdungeons2/`.
+   **The Minecraft mod**, only when `rig/minecraft/` changes: `rig\minecraft\build.ps1 -JavaHome <a JDK 25>` (Fabric
+   Loom fetches the game's jar to compile against on the first build; nothing of the game's goes into the mod), into
+   `redist/VoxonCaptureRig.Minecraft.jar`. Its decode host, `voxon_capture_mc.exe`, is built and copied by step 1.
 3. **The app**: `dotnet build host\VoxonCaptureRig -c Release`. The build copies `redist/`, `rig/` and `games.json`
    into the app's `payload\`, which is what Install rig puts into games, so **build the app again after anything in
    `redist/` changes**.

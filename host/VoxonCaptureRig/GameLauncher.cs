@@ -9,7 +9,8 @@ namespace VoxonCaptureRig;
 /// options apply: a Steam copy through Steam, an Epic copy through the Epic Games launcher, an Xbox app copy as its
 /// package; any other copy (the EA app's, or one the player pointed the app at) by its exe, from its own folder.
 /// games.json's "launch" wins over all of them: a link, or an exe in the game's folder (Crysis: the c1-launcher the
-/// player downloads, without which the game does not start on a current PC).</summary>
+/// player downloads, without which the game does not start on a current PC; Minecraft: the Minecraft Launcher's
+/// package, where the player picks the Fabric profile and presses Play).</summary>
 internal static class GameLauncher
 {
     /// <summary>What Launch starts for the game whose exe is in exeDir, and through what; a null target, and why, when
@@ -18,7 +19,8 @@ internal static class GameLauncher
     {
         if (!string.IsNullOrEmpty(g.Launch))
         {
-            if (g.Launch.Contains("://", StringComparison.Ordinal)) return (g.Launch, "the link games.json gives it");
+            if (g.Launch.Contains("://", StringComparison.Ordinal) || g.Launch.StartsWith("shell:", StringComparison.OrdinalIgnoreCase))
+                return (g.Launch, "the link games.json gives it");
             string exe = Path.Combine(exeDir, g.Launch);
             return File.Exists(exe) ? (exe, g.Launch)
                                     : (null, $"{g.Launch} is not in the game's folder: the game's notes say where it comes from");
