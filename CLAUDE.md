@@ -21,8 +21,8 @@ Machine A), to add GTA V. Read `README.md`, then `docs/ARCHITECTURE.md`, before 
 - **Never commit third-party files** either: only our own work is in git (`.gitignore`; what is fetched after cloning,
   and from where: `docs/DEVELOPER_GUIDE.md`).
 - **Commit and push only when the user asks.** Push as the jordan608 account. The repository was started afresh on
-  2026-10-21 with our own work only; its remote is not set yet (the old one, `github.com/jordan608/CubeRig`, holds the
-  earlier history with the third-party files).
+  2026-10-21 with our own work only; its remote is `github.com/jordan608/voxelGameCapture` (the old one,
+  `github.com/jordan608/CubeRig`, holds the earlier history with the third-party files).
 
 The older GTA V work is in **VoxelSteamTap** (`github.com/jordan608/VoxelSteamTap`, `a4-scripthook/`). Its README
 and PLAN carry real measurements, but some of its rules are **superseded here**: "do not reconstruct geometry from a
@@ -47,7 +47,7 @@ plugin hooks RAGE's own drawing and has it draw the world again from each face's
 II, The Sims 4 and Crysis do. Step 0 (setting up Machine B) and the installer, profile and docs work in step 3 stand.
 
 ### 0. Set up Machine B
-- [ ] Clone it from its remote (`git clone <remote> VoxonCaptureRig`), then put the third-party files in place
+- [ ] Clone it from its remote (`git clone https://github.com/jordan608/voxelGameCapture.git VoxonCaptureRig`), then put the third-party files in place
       (`docs/DEVELOPER_GUIDE.md`, *What is in git, and what is not*): they are not in git.
 - [ ] Install the .NET 9 SDK (the app), Visual Studio 2022 with "Desktop development with C++" and the Windows SDK
       (the add-on and its shaders), and the Voxon VLED runtime (the simulator; never bundled).
@@ -96,7 +96,7 @@ The whole port depends on this. Stop and report if it fails.
 ## Where things stand (2026-10-24, Machine C)
 
 **Repo state (2026-10-24).** A fresh repository, branch `main`, started on 2026-10-21 with one commit holding
-everything to date - our own work only, no third-party files - and a commit per game since. No remote yet. The old
+everything to date - our own work only, no third-party files - and a commit per game since. Its remote is `github.com/jordan608/voxelGameCapture`. The old
 history (branches `master` and `redengine-rigs`, up to `cc9919a`, Battlefront II, never pushed) is kept outside the
 tree, at `..\VoxonCaptureRig-old-history.git`. From the tree as it stands, the add-on, both Unity plugins, the
 Minecraft mod and the app build, and every self-test passes (the GPU decode on WARP, D3D11 and D3D12; the app's

@@ -82,7 +82,7 @@ installs into throwaway game folders and checks that Remove puts each one back b
 - **Never commit** game files, third-party files (below), the Voxon runtime, or ScriptHookV.
 - **Commit and push only when asked.** Push as the jordan608 account.
 
-The repository was started afresh on 2026-10-21 with our own work only. The history before that, which carried
+The repository (`github.com/jordan608/voxelGameCapture`) was started afresh on 2026-10-21 with our own work only. The history before that, which carried
 third-party files, is kept apart from it (and on `github.com/jordan608/CubeRig`).
 
 ## What is in git, and what is not
